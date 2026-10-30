@@ -25,14 +25,16 @@
       --gold-400: #ffd166;
       --gold-500: #f5b942;
       --gold-600: #d99b26;
+      --rose-400: #fb7185;
       --cyan-400: #38bdf8;
+      --violet-400: #a78bfa;
       --emerald-400: #34d399;
       --danger-400: #f87171;
 
       --radius-sm: 10px;
       --radius-md: 16px;
       --radius-lg: 22px;
-      --max-w: 1180px;
+      --max-w: 1200px;
     }
 
     *, *::before, *::after {
@@ -58,7 +60,6 @@
       flex-direction: column;
     }
 
-    /* Ambient Aurox Backdrop */
     .ambient-bg {
       position: fixed;
       inset: 0;
@@ -221,7 +222,7 @@
       display: none !important;
     }
 
-    /* Right Nav Actions & User Chip */
+    /* Right Nav Actions & Role Badges */
     .nav-actions {
       display: flex;
       align-items: center;
@@ -245,23 +246,38 @@
       font-weight: 700;
       padding: 3px 9px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: var(--text-secondary);
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      white-space: nowrap;
     }
 
-    .role-badge.owner {
-      background: linear-gradient(135deg, rgba(245, 185, 66, 0.28), rgba(245, 185, 66, 0.1));
+    .role-badge.role-owner {
+      background: linear-gradient(135deg, rgba(245, 185, 66, 0.3), rgba(245, 185, 66, 0.1));
       border: 1px solid var(--border-gold);
       color: var(--gold-400);
+      box-shadow: 0 0 14px rgba(245, 185, 66, 0.18);
     }
 
-    .role-badge.admin {
+    .role-badge.role-coowner {
+      background: linear-gradient(135deg, rgba(251, 113, 133, 0.25), rgba(245, 185, 66, 0.14));
+      border: 1px solid rgba(251, 113, 133, 0.45);
+      color: #fda4af;
+    }
+
+    .role-badge.role-admin {
       background: rgba(56, 189, 248, 0.16);
-      border: 1px solid rgba(56, 189, 248, 0.35);
+      border: 1px solid rgba(56, 189, 248, 0.38);
       color: var(--cyan-400);
+    }
+
+    .role-badge.role-moderator {
+      background: rgba(167, 139, 250, 0.16);
+      border: 1px solid rgba(167, 139, 250, 0.38);
+      color: var(--violet-400);
     }
 
     .balance-pill {
@@ -279,6 +295,37 @@
 
     .balance-pill:hover {
       background: rgba(52, 211, 153, 0.2);
+    }
+
+    /* Online / Signed-In Pill */
+    .signin-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+
+    .signin-pill.online {
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: var(--emerald-400);
+    }
+
+    .signin-pill.offline {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+
+    .dot-live {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald-400);
+      box-shadow: 0 0 8px var(--emerald-400);
     }
 
     /* Buttons */
@@ -810,27 +857,27 @@
     .compare-table td:nth-child(2) { color: var(--text-muted); }
     .compare-table td:nth-child(3) { color: var(--gold-400); font-weight: 600; }
 
-    /* ================= ADMIN & OWNER DASHBOARD ================= */
+    /* ================= ADMIN & STAFF DASHBOARD ================= */
     .admin-wrap {
       padding: 44px 0 72px;
     }
 
     .admin-stats {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 16px;
-      margin-bottom: 28px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 26px;
     }
 
     .stat-box {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 20px;
+      padding: 18px 20px;
     }
 
     .stat-box .label {
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -839,7 +886,7 @@
 
     .stat-box .val {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.7rem;
+      font-size: 1.65rem;
       font-weight: 700;
       color: var(--gold-400);
     }
@@ -848,7 +895,7 @@
       display: grid;
       grid-template-columns: 1fr 1.15fr;
       gap: 24px;
-      margin-bottom: 28px;
+      margin-bottom: 26px;
     }
 
     .panel-card {
@@ -857,6 +904,11 @@
       border-radius: var(--radius-lg);
       padding: 26px;
       margin-bottom: 26px;
+    }
+
+    .panel-card.gold-outline {
+      border-color: var(--border-gold);
+      background: radial-gradient(90% 120% at 100% 0%, rgba(245, 185, 66, 0.08), transparent 60%), var(--bg-surface);
     }
 
     .panel-card h3 {
@@ -874,6 +926,43 @@
       margin-bottom: 20px;
     }
 
+    /* Quick Role Promoter Bar */
+    .role-promoter-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    /* Filter Pills */
+    .filter-pills {
+      display: inline-flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .filter-pill {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    .filter-pill.active {
+      background: var(--bg-elevated);
+      color: var(--gold-400);
+      border: 1px solid var(--border-gold);
+    }
+
     /* Forms */
     .form-group {
       margin-bottom: 15px;
@@ -881,28 +970,40 @@
 
     .form-group label {
       display: block;
-      font-size: 0.82rem;
+      font-size: 0.81rem;
       font-weight: 600;
       color: var(--text-secondary);
       margin-bottom: 6px;
     }
 
     .input,
-    .textarea {
+    .textarea,
+    .select-inline {
       width: 100%;
-      background: rgba(0, 0, 0, 0.35);
+      background: rgba(0, 0, 0, 0.38);
       border: 1px solid var(--border-strong);
       border-radius: 10px;
       padding: 11px 13px;
       color: var(--text-primary);
       font-family: inherit;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       outline: none;
       transition: border-color 0.18s ease;
     }
 
+    .select-inline {
+      width: auto;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #0d121d;
+    }
+
     .input:focus,
-    .textarea:focus {
+    .textarea:focus,
+    .select-inline:focus {
       border-color: var(--gold-400);
     }
 
@@ -940,19 +1041,19 @@
       width: 100%;
       border-collapse: collapse;
       text-align: left;
-      font-size: 0.87rem;
+      font-size: 0.86rem;
     }
 
     .data-table th,
     .data-table td {
-      padding: 13px 14px;
+      padding: 13px 13px;
       border-bottom: 1px solid var(--border-subtle);
       white-space: nowrap;
     }
 
     .data-table th {
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       background: rgba(255, 255, 255, 0.02);
@@ -960,7 +1061,7 @@
 
     .mono {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.81rem;
+      font-size: 0.8rem;
     }
 
     /* Modals */
@@ -1072,11 +1173,12 @@
       color: var(--text-muted);
     }
 
-    @media (max-width: 960px) {
+    @media (max-width: 980px) {
       .hero-grid,
       .features-grid,
       .pricing-grid,
-      .admin-grid {
+      .admin-grid,
+      .role-promoter-grid {
         grid-template-columns: 1fr;
       }
       .admin-stats {
@@ -1100,11 +1202,11 @@
         </div>
         <div class="brand-name">
           AUROX <span class="accent">SCRIPTS</span>
-          <span class="version-tag">v2.5</span>
+          <span class="version-tag">v2.6</span>
         </div>
       </a>
 
-      <!-- Navigation Tabs (Admin Panel strictly visible ONLY to Admins & Owner👑) -->
+      <!-- Navigation Tabs (Admin Panel visible to Owner, Co-Owner, Admin & Moderator) -->
       <nav class="nav-tabs" aria-label="Primary Navigation">
         <button type="button" class="nav-tab active" data-nav="home" id="tab-home">Home</button>
         <button type="button" class="nav-tab premium-tab" data-nav="premium" id="tab-premium">
@@ -1117,13 +1219,11 @@
 
       <!-- Auth / Account Controls -->
       <div class="nav-actions">
-        <!-- Logged Out View -->
         <div id="logged-out-box" style="display: flex; gap: 8px;">
           <button type="button" class="btn btn-ghost btn-sm" id="open-login-btn">Log In</button>
           <button type="button" class="btn btn-gold btn-sm" id="open-signup-btn">Sign Up</button>
         </div>
 
-        <!-- Logged In View -->
         <div id="logged-in-box" class="user-bar hidden">
           <span id="nav-username" style="font-weight: 700;">User</span>
           <span id="nav-role" class="role-badge">Member</span>
@@ -1195,7 +1295,7 @@
               </div>
 
               <div class="terminal-body" id="term-panel-loader">
-                <div class="code-line"><span class="ln">1</span><span class="tok-comment">-- Aurox Scripts Universal Hub v2.5</span></div>
+                <div class="code-line"><span class="ln">1</span><span class="tok-comment">-- Aurox Scripts Universal Hub v2.6</span></div>
                 <div class="code-line"><span class="ln">2</span><span><span class="tok-kw">getgenv</span>().AuroxConfig = {</span></div>
                 <div class="code-line"><span class="ln">3</span><span>  AutoExecute = <span class="tok-kw">true</span>,</span></div>
                 <div class="code-line"><span class="ln">4</span><span>  Theme = <span class="tok-str">"ObsidianGold"</span></span></div>
@@ -1205,7 +1305,7 @@
 
               <div class="terminal-body" id="term-panel-console" style="display: none;">
                 <div class="code-line"><span class="ln">&gt;</span><span class="tok-comment">[AUROX] Connecting to edge node...</span></div>
-                <div class="code-line"><span class="ln">&gt;</span><span>[AUROX] Signature verified <span class="tok-ok">(v2.5)</span></span></div>
+                <div class="code-line"><span class="ln">&gt;</span><span>[AUROX] Signature verified <span class="tok-ok">(v2.6)</span></span></div>
                 <div class="code-line"><span class="ln">&gt;</span><span>[AUROX] Environment check: <span class="tok-ok">PASSED</span></span></div>
                 <div class="code-line"><span class="ln">&gt;</span><span class="tok-ok">✓ Aurox Hub initialized and ready.</span></div>
               </div>
@@ -1380,34 +1480,133 @@
       </div>
     </section>
 
-    <!-- ==================== ADMIN & OWNER PANEL ==================== -->
+    <!-- ==================== ADMIN & STAFF PANEL ==================== -->
     <section id="view-admin" class="page-view">
       <div class="container admin-wrap">
         <div class="section-head">
           <div>
             <div class="eyebrow">👑 Staff &amp; Owner Control Center</div>
             <h2 class="section-title">Admin &amp; Owner Dashboard</h2>
-            <p class="section-desc">Add custom scripts with pictures, inspect user credentials &amp; account balances, and track Payment History.</p>
+            <p class="section-desc">See everyone signed in, assign Co-Owner / Admin / Moderator roles, manage user balances, payment history, and scripts.</p>
           </div>
         </div>
 
         <!-- Overview Stats -->
         <div class="admin-stats">
           <div class="stat-box">
-            <div class="label">Registered Users</div>
+            <div class="label">Total Accounts</div>
             <div class="val" id="stat-users">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Signed-In Users</div>
+            <div class="val" id="stat-signedin" style="color: var(--emerald-400);">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Staff Team</div>
+            <div class="val" id="stat-staff" style="color: var(--cyan-400);">0</div>
           </div>
           <div class="stat-box">
             <div class="label">Published Scripts</div>
             <div class="val" id="stat-scripts">0</div>
           </div>
           <div class="stat-box">
-            <div class="label">Total Payments</div>
-            <div class="val" id="stat-payments">0</div>
-          </div>
-          <div class="stat-box">
             <div class="label">Payment Volume</div>
             <div class="val" id="stat-volume">$0.00</div>
+          </div>
+        </div>
+
+        <!-- Quick Role Promoter (Make Anyone Co-Owner, Admin, Moderator, or Member) -->
+        <div class="panel-card gold-outline" id="role-manager-card">
+          <h3>⚡ Role Manager — Make Anyone Co-Owner, Admin, or Moderator</h3>
+          <p class="sub">Select or type any username below to immediately promote or update their rank across Aurox Scripts.</p>
+
+          <form id="quick-role-form" class="role-promoter-grid">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="promote-username-input">Select or Type Username</label>
+              <input
+                type="text"
+                id="promote-username-input"
+                list="registered-users-datalist"
+                class="input"
+                placeholder="Type or choose a signed-in username..."
+                required
+              />
+              <datalist id="registered-users-datalist"></datalist>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="promote-role-select">Assign Role</label>
+              <select id="promote-role-select" class="input">
+                <option value="Co-Owner👑">Co-Owner👑</option>
+                <option value="Admin🛡️">Admin🛡️</option>
+                <option value="Moderator⚔️">Moderator⚔️</option>
+                <option value="Member">Member</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-gold" style="height: 44px;">
+              Assign Role
+            </button>
+          </form>
+        </div>
+
+        <!-- Everyone Signed In & Registered Users Table -->
+        <div class="panel-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <div>
+              <h3 style="margin-bottom: 4px;">🟢 Everyone Signed In &amp; User Accounts</h3>
+              <p class="sub" style="margin-bottom: 0;">Every user who signed in or registered — view status, username, password, balance, and change roles directly.</p>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div class="filter-pills">
+                <button type="button" class="filter-pill active" data-user-filter="all">All Users</button>
+                <button type="button" class="filter-pill" data-user-filter="signedin">Signed In</button>
+                <button type="button" class="filter-pill" data-user-filter="staff">Staff Only</button>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="admin-create-user-btn">+ Create User</button>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Sign-In Status</th>
+                  <th>Username</th>
+                  <th>Password</th>
+                  <th>Current Role</th>
+                  <th>Account Balance</th>
+                  <th>Last Sign-In &amp; Device</th>
+                  <th>Change Role / Balance</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Live Sign-In Activity Feed -->
+        <div class="panel-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <h3 style="margin-bottom: 4px;">🕒 Recent Sign-In Activity Log</h3>
+              <p class="sub" style="margin-bottom: 0;">Real-time log of everyone signing in, signing up, and role promotions.</p>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Event</th>
+                  <th>Device / Browser</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="admin-signins-tbody"></tbody>
+            </table>
           </div>
         </div>
 
@@ -1458,32 +1657,6 @@
                 <tbody id="admin-scripts-tbody"></tbody>
               </table>
             </div>
-          </div>
-        </div>
-
-        <!-- Users Account Table (Username, Password, Role, Balance) -->
-        <div class="panel-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
-            <div>
-              <h3 style="margin-bottom: 4px;">👥 Users — Name, Password &amp; Account Balance</h3>
-              <p class="sub" style="margin-bottom: 0;">Restricted to Admins and Owner👑. Manage user balances and Admin permissions.</p>
-            </div>
-            <button type="button" class="btn btn-ghost btn-sm" id="admin-create-user-btn">+ Create User</button>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Password</th>
-                  <th>Role</th>
-                  <th>Plan</th>
-                  <th>Account Balance</th>
-                  <th>Controls</th>
-                </tr>
-              </thead>
-              <tbody id="admin-users-tbody"></tbody>
-            </table>
           </div>
         </div>
 
@@ -1620,12 +1793,77 @@
         '</svg>'
       );
 
+      // Keep same storage keys so existing accounts/scripts/sessions persist seamlessly
       const KEYS = {
         USERS: 'aurox_users_db_v3',
         SESSION: 'aurox_session_v3',
         SCRIPTS: 'aurox_scripts_db_v3',
-        PAYMENTS: 'aurox_payments_db_v3'
+        PAYMENTS: 'aurox_payments_db_v3',
+        SIGNINS: 'aurox_signins_db_v3'
       };
+
+      // Role Hierarchy & Styling Helpers
+      const ROLES = {
+        OWNER: 'Owner👑',
+        CO_OWNER: 'Co-Owner👑',
+        ADMIN: 'Admin🛡️',
+        MODERATOR: 'Moderator⚔️',
+        MEMBER: 'Member'
+      };
+
+      function normalizeRole(role) {
+        if (!role) return ROLES.MEMBER;
+        const r = String(role).toLowerCase();
+        if (r.includes('co-owner') || r.includes('co owner') || r.includes('coowner')) return ROLES.CO_OWNER;
+        if (r.includes('owner')) return ROLES.OWNER;
+        if (r.includes('admin')) return ROLES.ADMIN;
+        if (r.includes('mod')) return ROLES.MODERATOR;
+        return ROLES.MEMBER;
+      }
+
+      function getRoleRank(role) {
+        const norm = normalizeRole(role);
+        if (norm === ROLES.OWNER) return 5;
+        if (norm === ROLES.CO_OWNER) return 4;
+        if (norm === ROLES.ADMIN) return 3;
+        if (norm === ROLES.MODERATOR) return 2;
+        return 1;
+      }
+
+      function getRoleBadgeClass(role) {
+        const norm = normalizeRole(role);
+        if (norm === ROLES.OWNER) return 'role-owner';
+        if (norm === ROLES.CO_OWNER) return 'role-coowner';
+        if (norm === ROLES.ADMIN) return 'role-admin';
+        if (norm === ROLES.MODERATOR) return 'role-moderator';
+        return '';
+      }
+
+      function isStaff(user) {
+        return Boolean(user && getRoleRank(user.role) >= 2);
+      }
+
+      function canManageRoles(actor) {
+        return Boolean(actor && getRoleRank(actor.role) >= 3);
+      }
+
+      function detectDevice() {
+        const ua = navigator.userAgent || '';
+        let os = 'Desktop';
+        if (/android/i.test(ua)) os = 'Android';
+        else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+        else if (/windows/i.test(ua)) os = 'Windows';
+        else if (/mac/i.test(ua)) os = 'macOS';
+        else if (/linux/i.test(ua)) os = 'Linux';
+
+        let browser = 'Browser';
+        if (/edg/i.test(ua)) browser = 'Edge';
+        else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+        else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+        else if (/safari/i.test(ua)) browser = 'Safari';
+
+        return os + ' · ' + browser;
+      }
 
       function loadJSON(key, fallback) {
         try {
@@ -1657,30 +1895,46 @@
       let users = loadJSON(KEYS.USERS, []);
       const ownerUsername = 'ahhaksjshsksgdi';
       const ownerPass = 'omaromar0990_';
-      const existingOwnerIdx = users.findIndex((u) => u.username === ownerUsername);
 
+      // Normalize all stored user objects
+      users = users.map((u) => ({
+        ...u,
+        role: normalizeRole(u.role),
+        balance: typeof u.balance === 'number' ? u.balance : 0,
+        signedIn: Boolean(u.signedIn),
+        hasSignedIn: u.hasSignedIn !== undefined ? Boolean(u.hasSignedIn) : true,
+        lastSignIn: u.lastSignIn || 'Registered',
+        device: u.device || 'Web Client',
+        loginCount: typeof u.loginCount === 'number' ? u.loginCount : 1
+      }));
+
+      const existingOwnerIdx = users.findIndex((u) => u.username === ownerUsername);
       if (existingOwnerIdx === -1) {
         users.unshift({
           username: ownerUsername,
           password: ownerPass,
-          role: 'Owner👑',
+          role: ROLES.OWNER,
           balance: 9999.00,
-          plan: 'Lifetime Owner'
+          plan: 'Lifetime Owner',
+          signedIn: false,
+          hasSignedIn: true,
+          lastSignIn: 'Owner Preloaded',
+          device: 'System Crown',
+          loginCount: 1
         });
-        saveJSON(KEYS.USERS, users);
       } else {
         users[existingOwnerIdx].password = ownerPass;
-        users[existingOwnerIdx].role = 'Owner👑';
+        users[existingOwnerIdx].role = ROLES.OWNER;
         if (typeof users[existingOwnerIdx].balance !== 'number') {
           users[existingOwnerIdx].balance = 9999.00;
         }
-        saveJSON(KEYS.USERS, users);
       }
+      saveJSON(KEYS.USERS, users);
 
       let scripts = loadJSON(KEYS.SCRIPTS, [
         {
           id: 'scr-universal',
-          name: 'Aurox Universal Hub v2.5',
+          name: 'Aurox Universal Hub v2.6',
           image: DEFAULT_BANNER,
           code: LOADER_SCRIPT,
           author: 'ahhaksjshsksgdi (Owner👑)'
@@ -1700,16 +1954,47 @@
       ]);
       saveJSON(KEYS.PAYMENTS, payments);
 
+      let signInLogs = loadJSON(KEYS.SIGNINS, []);
       let currentUser = localStorage.getItem(KEYS.SESSION) || null;
+      let activeUserFilter = 'all';
+
+      // Ensure currently active session user is marked signedIn = true
+      if (currentUser) {
+        const activeObj = users.find((u) => u.username === currentUser);
+        if (activeObj) {
+          activeObj.signedIn = true;
+          activeObj.hasSignedIn = true;
+          saveJSON(KEYS.USERS, users);
+        }
+      }
 
       function getCurrentUserObj() {
         if (!currentUser) return null;
         return users.find((u) => u.username === currentUser) || null;
       }
 
-      function isStaff(user) {
-        return Boolean(user && (user.role === 'Owner👑' || user.role === 'Admin'));
+      function recordSignInEvent(username, role, eventLabel) {
+        signInLogs.unshift({
+          username,
+          role: normalizeRole(role),
+          event: eventLabel,
+          device: detectDevice(),
+          time: new Date().toLocaleString()
+        });
+        if (signInLogs.length > 100) signInLogs = signInLogs.slice(0, 100);
+        saveJSON(KEYS.SIGNINS, signInLogs);
       }
+
+      // Live Cross-Tab Sync so any sign-in in another tab immediately appears in Admin Panel
+      window.addEventListener('storage', () => {
+        users = loadJSON(KEYS.USERS, users);
+        scripts = loadJSON(KEYS.SCRIPTS, scripts);
+        payments = loadJSON(KEYS.PAYMENTS, payments);
+        signInLogs = loadJSON(KEYS.SIGNINS, signInLogs);
+        currentUser = localStorage.getItem(KEYS.SESSION) || null;
+        renderScriptsGallery();
+        renderAuthUI();
+      });
 
       // Toast & Clipboard
       const toast = document.getElementById('toast');
@@ -1720,7 +2005,7 @@
         toastMsg.textContent = msg;
         toast.classList.add('show');
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 2700);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
       }
 
       function copyText(text, label) {
@@ -1743,7 +2028,7 @@
         showToast(label);
       }
 
-      // Page Navigation & Admin Protection
+      // Page Navigation & Staff Protection
       const views = {
         home: document.getElementById('view-home'),
         premium: document.getElementById('view-premium'),
@@ -1759,7 +2044,7 @@
         const user = getCurrentUserObj();
         let target = page;
         if (target === 'admin' && !isStaff(user)) {
-          showToast('Restricted to Admins & Owner👑 only.');
+          showToast('Restricted to Staff (Moderator, Admin, Co-Owner & Owner👑).');
           target = 'home';
         }
         if (!views[target]) target = 'home';
@@ -1802,12 +2087,13 @@
 
         const roleEl = document.getElementById('nav-role');
         roleEl.textContent = user.role;
-        roleEl.className = 'role-badge ' + (user.role === 'Owner👑' ? 'owner' : user.role === 'Admin' ? 'admin' : '');
+        roleEl.className = 'role-badge ' + getRoleBadgeClass(user.role);
 
         document.getElementById('nav-balance').textContent = '$' + Number(user.balance || 0).toFixed(2) + ' +';
 
         if (isStaff(user)) {
           adminTab.classList.remove('hidden');
+          adminTab.textContent = user.role === ROLES.MODERATOR ? '⚔️ Mod Panel' : '👑 Admin Panel';
           addShortcut.classList.remove('hidden');
           renderAdminDashboard();
         } else {
@@ -1875,44 +2161,186 @@
         scriptViewModal.classList.remove('open');
       });
 
-      // Render Admin & Owner Dashboard
+      // Role Assignment Helper with Rank Enforcement
+      function assignUserRole(actor, targetUsername, desiredRoleRaw) {
+        if (!actor || !canManageRoles(actor)) {
+          showToast('Only Admins, Co-Owners & Owner👑 can change user roles.');
+          return false;
+        }
+
+        const newRole = normalizeRole(desiredRoleRaw);
+        const actorRank = getRoleRank(actor.role);
+        const desiredRank = getRoleRank(newRole);
+
+        //Nobody can assign Owner👑 or modify main Owner account
+        if (targetUsername.toLowerCase() === ownerUsername.toLowerCase()) {
+          showToast('Main Owner👑 account role cannot be modified.');
+          return false;
+        }
+
+        // Only Owner👑 can make someone Co-Owner👑; Co-Owner can make Admin/Mod/Member; Admin can make Mod/Member
+        if (actor.role !== ROLES.OWNER && desiredRank >= actorRank) {
+          showToast('You can only assign roles below your own rank (' + actor.role + ').');
+          return false;
+        }
+
+        let target = users.find((u) => u.username.toLowerCase() === targetUsername.toLowerCase());
+
+        if (target) {
+          if (actor.role !== ROLES.OWNER && getRoleRank(target.role) >= actorRank) {
+            showToast('You cannot modify a user with equal or higher rank.');
+            return false;
+          }
+          target.role = newRole;
+        } else {
+          // If username doesn't exist yet, create account pre-assigned with that role!
+          const tempPass = prompt('User "' + targetUsername + '" is not registered yet. Set a password to create & assign ' + newRole + ':', 'aurox123');
+          if (!tempPass) return false;
+          target = {
+            username: targetUsername,
+            password: tempPass,
+            role: newRole,
+            balance: 0.00,
+            plan: 'Standard',
+            signedIn: false,
+            hasSignedIn: false,
+            lastSignIn: 'Pre-assigned by ' + actor.username,
+            device: 'Pending Sign-In',
+            loginCount: 0
+          };
+          users.push(target);
+        }
+
+        saveJSON(KEYS.USERS, users);
+        recordSignInEvent(target.username, target.role, 'Promoted / Set to ' + target.role + ' by ' + actor.username);
+        renderAuthUI();
+        renderAdminDashboard();
+        showToast(target.username + ' is now ' + target.role + '!');
+        return true;
+      }
+
+      // Render Admin & Staff Dashboard
       function renderAdminDashboard() {
         const me = getCurrentUserObj();
         if (!isStaff(me)) return;
 
-        document.getElementById('stat-users').textContent = users.length;
-        document.getElementById('stat-scripts').textContent = scripts.length;
-        document.getElementById('stat-payments').textContent = payments.length;
+        const signedInCount = users.filter((u) => u.signedIn || u.username === currentUser).length;
+        const staffCount = users.filter((u) => getRoleRank(u.role) >= 2).length;
         const totalVol = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+        document.getElementById('stat-users').textContent = users.length;
+        document.getElementById('stat-signedin').textContent = signedInCount;
+        document.getElementById('stat-staff').textContent = staffCount;
+        document.getElementById('stat-scripts').textContent = scripts.length;
         document.getElementById('stat-volume').textContent = '$' + totalVol.toFixed(2);
 
-        // Users Table (Name, Password, Role, Balance)
+        // Show/hide Quick Role Manager card depending on permission (Admin, Co-Owner, Owner)
+        const roleCard = document.getElementById('role-manager-card');
+        roleCard.style.display = canManageRoles(me) ? 'block' : 'none';
+
+        // Populate datalist with every user so Owner can pick anyone effortlessly
+        const datalist = document.getElementById('registered-users-datalist');
+        datalist.innerHTML = users
+          .filter((u) => u.username !== ownerUsername)
+          .map((u) => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.role)} — ${u.signedIn ? 'Signed In' : 'Registered'}</option>`)
+          .join('');
+
+        // Restrict role options in Quick Promoter based on actor rank
+        const promoteSelect = document.getElementById('promote-role-select');
+        const meRank = getRoleRank(me.role);
+        Array.from(promoteSelect.options).forEach((opt) => {
+          const optRank = getRoleRank(opt.value);
+          opt.disabled = me.role !== ROLES.OWNER && optRank >= meRank;
+        });
+        if (promoteSelect.selectedOptions[0] && promoteSelect.selectedOptions[0].disabled) {
+          promoteSelect.value = ROLES.MODERATOR;
+        }
+
+        // Filter Users List
+        let filteredUsers = users.slice();
+        if (activeUserFilter === 'signedin') {
+          filteredUsers = filteredUsers.filter((u) => u.signedIn || u.username === currentUser);
+        } else if (activeUserFilter === 'staff') {
+          filteredUsers = filteredUsers.filter((u) => getRoleRank(u.role) >= 2);
+        }
+
         const usersTbody = document.getElementById('admin-users-tbody');
-        usersTbody.innerHTML = users.map((u, idx) => {
-          const isTargetOwner = u.role === 'Owner👑';
-          const canManageRole = me.role === 'Owner👑' && !isTargetOwner;
-          return `
+        if (!filteredUsers.length) {
+          usersTbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-muted); text-align: center; padding: 22px;">No matching users found.</td></tr>';
+        } else {
+          usersTbody.innerHTML = filteredUsers.map((u) => {
+            const realIdx = users.findIndex((item) => item.username === u.username);
+            const isOnline = Boolean(u.signedIn || u.username === currentUser);
+            const isTargetOwner = u.username.toLowerCase() === ownerUsername.toLowerCase();
+            const targetRank = getRoleRank(u.role);
+
+            // Mask higher-rank passwords from lower-rank staff (Owner sees 100% of passwords)
+            const canSeePassword = me.role === ROLES.OWNER || meRank > targetRank || u.username === me.username;
+            const passDisplay = canSeePassword ? escapeHtml(u.password) : '••••••••';
+
+            // Can actor change this row's role?
+            const canEditThisRole = canManageRoles(me) && !isTargetOwner && (me.role === ROLES.OWNER || meRank > targetRank);
+            const canEditBalance = meRank >= 3 && (me.role === ROLES.OWNER || meRank >= targetRank);
+
+            const roleOptions = [ROLES.MEMBER, ROLES.MODERATOR, ROLES.ADMIN, ROLES.CO_OWNER]
+              .filter((r) => me.role === ROLES.OWNER || getRoleRank(r) < meRank)
+              .map((r) => `<option value="${escapeHtml(r)}" ${normalizeRole(u.role) === r ? 'selected' : ''}>${escapeHtml(r)}</option>`)
+              .join('');
+
+            return `
+              <tr>
+                <td>
+                  <span class="signin-pill ${isOnline ? 'online' : 'offline'}">
+                    ${isOnline ? '<span class="dot-live"></span> Signed In' : '○ Signed Out'}
+                  </span>
+                </td>
+                <td>
+                  <strong>${escapeHtml(u.username)}</strong>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(u.plan || 'Standard')} · ${Number(u.loginCount || 1)} login(s)</div>
+                </td>
+                <td class="mono" style="color: var(--gold-400);">${passDisplay}</td>
+                <td>
+                  <span class="role-badge ${getRoleBadgeClass(u.role)}">
+                    ${escapeHtml(u.role)}
+                  </span>
+                </td>
+                <td class="mono" style="color: var(--emerald-400); font-weight: 600;">$${Number(u.balance || 0).toFixed(2)}</td>
+                <td>
+                  <div style="font-size: 0.8rem; color: var(--text-primary);">${escapeHtml(u.lastSignIn || '—')}</div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(u.device || 'Web')}</div>
+                </td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 7px;">
+                    ${canEditThisRole ? `
+                      <select class="select-inline row-role-select" data-username="${escapeHtml(u.username)}" aria-label="Change Role for ${escapeHtml(u.username)}">
+                        ${roleOptions}
+                      </select>
+                    ` : `<span style="font-size: 0.75rem; color: var(--text-muted);">Protected</span>`}
+                    ${canEditBalance ? `
+                      <button type="button" class="btn btn-ghost btn-xs edit-bal-btn" data-idx="${realIdx}">Set Balance</button>
+                    ` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // Sign-In Activity Feed Table
+        const signinsTbody = document.getElementById('admin-signins-tbody');
+        if (!signInLogs.length) {
+          signinsTbody.innerHTML = '<tr><td colspan="5" style="color: var(--text-muted); text-align: center; padding: 20px;">Sign-in events will appear here automatically as users log in or sign up.</td></tr>';
+        } else {
+          signinsTbody.innerHTML = signInLogs.slice(0, 25).map((log) => `
             <tr>
-              <td><strong>${escapeHtml(u.username)}</strong></td>
-              <td class="mono" style="color: var(--gold-400);">${escapeHtml(u.password)}</td>
-              <td>
-                <span class="role-badge ${u.role === 'Owner👑' ? 'owner' : u.role === 'Admin' ? 'admin' : ''}">
-                  ${escapeHtml(u.role)}
-                </span>
-              </td>
-              <td>${escapeHtml(u.plan || 'Standard')}</td>
-              <td class="mono" style="color: var(--emerald-400); font-weight: 600;">$${Number(u.balance || 0).toFixed(2)}</td>
-              <td style="display: flex; gap: 6px;">
-                <button type="button" class="btn btn-ghost btn-xs edit-bal-btn" data-idx="${idx}">Set Balance</button>
-                ${canManageRole ? `
-                  <button type="button" class="btn btn-ghost btn-xs toggle-admin-btn" data-idx="${idx}">
-                    ${u.role === 'Admin' ? 'Remove Admin' : 'Make Admin'}
-                  </button>
-                ` : ''}
-              </td>
+              <td><strong>${escapeHtml(log.username)}</strong></td>
+              <td><span class="role-badge ${getRoleBadgeClass(log.role)}">${escapeHtml(log.role)}</span></td>
+              <td style="color: var(--emerald-400); font-weight: 600;">${escapeHtml(log.event)}</td>
+              <td style="color: var(--text-secondary);">${escapeHtml(log.device)}</td>
+              <td class="mono" style="color: var(--text-muted);">${escapeHtml(log.time)}</td>
             </tr>
-          `;
-        }).join('');
+          `).join('');
+        }
 
         // Manage Scripts Table
         const scriptsTbody = document.getElementById('admin-scripts-tbody');
@@ -1945,7 +2373,36 @@
         }
       }
 
-      // Admin User Controls
+      // Filter Pills for Users Table
+      document.querySelectorAll('[data-user-filter]').forEach((pill) => {
+        pill.addEventListener('click', () => {
+          activeUserFilter = pill.getAttribute('data-user-filter');
+          document.querySelectorAll('[data-user-filter]').forEach((p) => p.classList.toggle('active', p === pill));
+          renderAdminDashboard();
+        });
+      });
+
+      // Quick Role Promoter Form Submit
+      document.getElementById('quick-role-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const me = getCurrentUserObj();
+        const uname = document.getElementById('promote-username-input').value.trim();
+        const role = document.getElementById('promote-role-select').value;
+        if (!uname) return;
+        if (assignUserRole(me, uname, role)) {
+          document.getElementById('promote-username-input').value = '';
+        }
+      });
+
+      // Inline Table Role Dropdown & Balance Controls
+      document.getElementById('admin-users-tbody').addEventListener('change', (e) => {
+        const select = e.target.closest('.row-role-select');
+        if (!select) return;
+        const me = getCurrentUserObj();
+        const targetUsername = select.getAttribute('data-username');
+        assignUserRole(me, targetUsername, select.value);
+      });
+
       document.getElementById('admin-users-tbody').addEventListener('click', (e) => {
         const me = getCurrentUserObj();
         if (!isStaff(me)) return;
@@ -1968,17 +2425,6 @@
           renderAdminDashboard();
           showToast('Updated balance for ' + target.username);
         }
-
-        const roleBtn = e.target.closest('.toggle-admin-btn');
-        if (roleBtn && me.role === 'Owner👑') {
-          const idx = Number(roleBtn.getAttribute('data-idx'));
-          const target = users[idx];
-          if (!target || target.role === 'Owner👑') return;
-          target.role = target.role === 'Admin' ? 'Member' : 'Admin';
-          saveJSON(KEYS.USERS, users);
-          renderAdminDashboard();
-          showToast(target.username + ' role updated to ' + target.role);
-        }
       });
 
       document.getElementById('admin-create-user-btn').addEventListener('click', () => {
@@ -1996,9 +2442,14 @@
         users.push({
           username: uname.trim(),
           password: pass,
-          role: 'Member',
+          role: ROLES.MEMBER,
           balance: bal,
-          plan: 'Standard'
+          plan: 'Standard',
+          signedIn: false,
+          hasSignedIn: false,
+          lastSignIn: 'Created by ' + me.username,
+          device: 'Admin Panel',
+          loginCount: 0
         });
         saveJSON(KEYS.USERS, users);
         renderAdminDashboard();
@@ -2017,6 +2468,11 @@
       });
 
       document.getElementById('record-payment-btn').addEventListener('click', () => {
+        const me = getCurrentUserObj();
+        if (!me || getRoleRank(me.role) < 3) {
+          showToast('Only Admins, Co-Owners & Owner👑 can record manual payments.');
+          return;
+        }
         const uname = prompt('Username:', currentUser || 'ahhaksjshsksgdi');
         if (!uname) return;
         const desc = prompt('Payment description:', 'Premium Lifetime Key');
@@ -2114,7 +2570,7 @@
         showToast('Script "' + name + '" published!');
       });
 
-      // Auth Modal (Log In & Sign Up)
+      // Auth Modal (Log In & Sign Up) — Every sign-in is tracked in Admin Panel
       const authModal = document.getElementById('auth-modal');
       const authForm = document.getElementById('auth-form');
       const authError = document.getElementById('auth-error');
@@ -2159,45 +2615,77 @@
 
         if (!username || !password) return;
 
+        const nowStr = new Date().toLocaleString();
+        const devStr = detectDevice();
+
         if (authMode === 'login') {
-          const found = users.find((u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
-          if (!found) {
-            authError.textContent = 'Incorrect username or password.';
+          const userByName = users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+          if (!userByName) {
+            authError.textContent = 'Account not found — click "Sign Up" above to register & sign in!';
             authError.style.display = 'block';
             return;
           }
-          currentUser = found.username;
+          if (userByName.password !== password) {
+            authError.textContent = 'Incorrect password for ' + userByName.username + '.';
+            authError.style.display = 'block';
+            return;
+          }
+
+          userByName.signedIn = true;
+          userByName.hasSignedIn = true;
+          userByName.lastSignIn = nowStr;
+          userByName.device = devStr;
+          userByName.loginCount = Number(userByName.loginCount || 0) + 1;
+          saveJSON(KEYS.USERS, users);
+
+          currentUser = userByName.username;
           localStorage.setItem(KEYS.SESSION, currentUser);
+          recordSignInEvent(userByName.username, userByName.role, 'Signed In');
+
           authModal.classList.remove('open');
           authForm.reset();
           renderAuthUI();
-          showToast('Signed in as ' + found.username + ' (' + found.role + ')');
+          showToast('Signed in as ' + userByName.username + ' (' + userByName.role + ')');
         } else {
           const exists = users.some((u) => u.username.toLowerCase() === username.toLowerCase());
           if (exists) {
-            authError.textContent = 'Username already registered.';
+            authError.textContent = 'Username already exists — switch to "Log In" above!';
             authError.style.display = 'block';
             return;
           }
           const newUser = {
             username,
             password,
-            role: 'Member',
+            role: ROLES.MEMBER,
             balance: 0.00,
-            plan: 'Standard'
+            plan: 'Standard',
+            signedIn: true,
+            hasSignedIn: true,
+            lastSignIn: nowStr,
+            device: devStr,
+            loginCount: 1
           };
           users.push(newUser);
           saveJSON(KEYS.USERS, users);
+
           currentUser = newUser.username;
           localStorage.setItem(KEYS.SESSION, currentUser);
+          recordSignInEvent(newUser.username, newUser.role, 'Signed Up & Signed In');
+
           authModal.classList.remove('open');
           authForm.reset();
           renderAuthUI();
-          showToast('Account created! Welcome, ' + newUser.username);
+          showToast('Account created & signed in as ' + newUser.username);
         }
       });
 
       document.getElementById('logout-btn').addEventListener('click', () => {
+        const me = getCurrentUserObj();
+        if (me) {
+          me.signedIn = false;
+          saveJSON(KEYS.USERS, users);
+          recordSignInEvent(me.username, me.role, 'Signed Out');
+        }
         currentUser = null;
         localStorage.removeItem(KEYS.SESSION);
         renderAuthUI();
@@ -2279,7 +2767,7 @@
       document.getElementById('copy-term-btn').addEventListener('click', () => copyText(LOADER_SCRIPT, 'Loadstring copied!'));
       document.getElementById('free-loader-btn').addEventListener('click', () => copyText(LOADER_SCRIPT, 'Free Loadstring copied!'));
 
-      // Boot
+      // Initial Boot
       renderScriptsGallery();
       renderAuthUI();
     })();
