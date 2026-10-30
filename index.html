@@ -1,21 +1,3 @@
-Since this session's branch (`arena/407169c6-website-project`) is locked after merging (`pr_merged`), I haven't modified workspace files directly — below is the complete, ready-to-paste **`index.html`** with everything built in:
-
-1. **Log In & Sign Up Modal** — Preloaded with your main account:
-   - **Username:** `ahhaksjshsksgdi`
-   - **Password:** `omaromar0990_`
-   - **Role:** `Owner👑` (with balance & role badge in the header)
-2. **Home & Premium Pages** — Keeps your Aurox Scripts loader + adds a **Published Scripts** gallery on **Home** and balance/checkout integration on **Premium** (including Balance Top-Up).
-3. **Admin & Owner Tab (`Admin Panel`)** — Hidden from normal users; appears automatically in the top bar only when an **`Owner👑`** or **`Admin`** is signed in:
-   - **Users Table:** View every user's **Username**, **Password**, **Role**, and **Account Balance** (plus edit balances or grant/revoke Admin).
-   - **Payment History:** Full log of balance top-ups, Premium purchases, and manual payment entries.
-   - **Add & Manage Scripts:** Choose any **picture from your device** (or paste an image URL) with live preview, enter the **Script Name**, paste **The Script**, and publish it straight to the site.
-
-### How to publish it in 30 seconds
-1. Open [`index.html` in your GitHub repository](https://github.com/omarmonna31-sketch/Website-Project/blob/main/index.html) and click the **Edit (pencil)** icon.
-2. Select everything, erase it, and paste the full code below.
-3. Click **Commit changes** — GitHub Pages will automatically rebuild **`https://omarmonna31-sketch.github.io/Website-Project/`** within ~30–60 seconds.
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +16,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       --bg-card-hover: #151d2c;
       --border-subtle: rgba(255, 255, 255, 0.07);
       --border-strong: rgba(255, 255, 255, 0.14);
-      --border-gold: rgba(245, 185, 66, 0.35);
+      --border-gold: rgba(245, 185, 66, 0.36);
 
       --text-primary: #f4f6fb;
       --text-secondary: #94a0b8;
@@ -76,6 +58,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       flex-direction: column;
     }
 
+    /* Ambient Aurox Backdrop */
     .ambient-bg {
       position: fixed;
       inset: 0;
@@ -90,7 +73,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       top: -220px;
       left: 50%;
       transform: translateX(-50%);
-      width: 960px;
+      width: 980px;
       height: 540px;
       background: radial-gradient(ellipse at center, rgba(245, 185, 66, 0.13) 0%, rgba(56, 189, 248, 0.05) 42%, transparent 72%);
       filter: blur(40px);
@@ -125,7 +108,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       z-index: 50;
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
-      background: rgba(6, 8, 13, 0.82);
+      background: rgba(6, 8, 13, 0.84);
       border-bottom: 1px solid var(--border-subtle);
     }
 
@@ -249,10 +232,10 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
     .user-bar {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
       background: rgba(255, 255, 255, 0.035);
       border: 1px solid var(--border-strong);
-      padding: 5px 8px 5px 12px;
+      padding: 5px 8px 5px 13px;
       border-radius: 999px;
       font-size: 0.83rem;
     }
@@ -260,10 +243,13 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
     .role-badge {
       font-size: 0.72rem;
       font-weight: 700;
-      padding: 2px 8px;
+      padding: 3px 9px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .role-badge.owner {
@@ -288,6 +274,11 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       padding: 3px 9px;
       border-radius: 999px;
       cursor: pointer;
+      transition: background 0.18s ease;
+    }
+
+    .balance-pill:hover {
+      background: rgba(52, 211, 153, 0.2);
     }
 
     /* Buttons */
@@ -516,7 +507,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
     .terminal-body {
       padding: 20px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.81rem;
+      font-size: 0.8rem;
       line-height: 1.72;
       min-height: 225px;
     }
@@ -608,7 +599,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
 
     .script-thumb {
       width: 100%;
-      height: 175px;
+      height: 180px;
       object-fit: cover;
       background: linear-gradient(135deg, #121826, #090d16);
       border-bottom: 1px solid var(--border-subtle);
@@ -619,20 +610,13 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 11px;
       flex: 1;
-    }
-
-    .script-card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
     }
 
     .script-card h3 {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.12rem;
+      font-size: 1.14rem;
       line-height: 1.3;
     }
 
@@ -644,7 +628,7 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       border: 1px solid var(--border-subtle);
       border-radius: 9px;
       padding: 10px 12px;
-      max-height: 76px;
+      max-height: 78px;
       overflow: hidden;
       word-break: break-all;
       white-space: pre-wrap;
@@ -669,6 +653,12 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       padding: 26px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-strong);
     }
 
     .feature-icon {
@@ -769,4 +759,1530 @@ Since this session's branch (`arena/407169c6-website-project`) is locked after m
 
     .plan-period {
       font-size: 0.84rem;
-      color: va
+      color: var(--text-muted);
+    }
+
+    .perk-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 28px;
+      flex: 1;
+    }
+
+    .perk-list li {
+      display: flex;
+      gap: 9px;
+      font-size: 0.89rem;
+      color: var(--text-secondary);
+    }
+
+    .check-icon { color: var(--gold-400); }
+
+    /* Comparison Table */
+    .compare-wrap {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 64px;
+    }
+
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: 15px 22px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.9rem;
+    }
+
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table th {
+      background: rgba(255, 255, 255, 0.02);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .compare-table td:nth-child(2) { color: var(--text-muted); }
+    .compare-table td:nth-child(3) { color: var(--gold-400); font-weight: 600; }
+
+    /* ================= ADMIN & OWNER DASHBOARD ================= */
+    .admin-wrap {
+      padding: 44px 0 72px;
+    }
+
+    .admin-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .stat-box .label {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .stat-box .val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--gold-400);
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 26px;
+      margin-bottom: 26px;
+    }
+
+    .panel-card h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.22rem;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-card .sub {
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+      margin-bottom: 20px;
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .input,
+    .textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 11px 13px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.18s ease;
+    }
+
+    .input:focus,
+    .textarea:focus {
+      border-color: var(--gold-400);
+    }
+
+    .textarea {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .img-upload-box {
+      border: 1px dashed var(--border-gold);
+      background: rgba(245, 185, 66, 0.04);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .img-preview {
+      width: 100%;
+      max-height: 160px;
+      object-fit: cover;
+      border-radius: 9px;
+      margin-top: 10px;
+      border: 1px solid var(--border-subtle);
+      display: none;
+    }
+
+    /* Admin Tables */
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.87rem;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    .data-table th {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.81rem;
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(3, 5, 9, 0.82);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-gold);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.7);
+    }
+
+    .auth-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 5px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .auth-switch button {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.86rem;
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .auth-switch button.active {
+      background: var(--bg-surface);
+      color: var(--gold-400);
+      border: 1px solid var(--border-gold);
+    }
+
+    .error-msg {
+      color: var(--danger-400);
+      font-size: 0.82rem;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 150;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-gold);
+      color: var(--text-primary);
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.24s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 26px 0;
+      position: relative;
+      z-index: 1;
+      background: rgba(6, 8, 13, 0.6);
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 960px) {
+      .hero-grid,
+      .features-grid,
+      .pricing-grid,
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+      .admin-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg" aria-hidden="true"></div>
+  <div class="ambient-grid" aria-hidden="true"></div>
+
+  <!-- Top Navigation -->
+  <header class="navbar-wrap">
+    <div class="container navbar">
+      <a href="#home" class="brand" data-nav="home" aria-label="Aurox Scripts Home">
+        <div class="brand-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffd166" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 22 20 12 16 2 20 12 2"></polygon>
+          </svg>
+        </div>
+        <div class="brand-name">
+          AUROX <span class="accent">SCRIPTS</span>
+          <span class="version-tag">v2.5</span>
+        </div>
+      </a>
+
+      <!-- Navigation Tabs (Admin Panel strictly visible ONLY to Admins & Owner👑) -->
+      <nav class="nav-tabs" aria-label="Primary Navigation">
+        <button type="button" class="nav-tab active" data-nav="home" id="tab-home">Home</button>
+        <button type="button" class="nav-tab premium-tab" data-nav="premium" id="tab-premium">
+          <span class="spark">★</span> Premium
+        </button>
+        <button type="button" class="nav-tab admin-tab hidden" data-nav="admin" id="tab-admin">
+          👑 Admin Panel
+        </button>
+      </nav>
+
+      <!-- Auth / Account Controls -->
+      <div class="nav-actions">
+        <!-- Logged Out View -->
+        <div id="logged-out-box" style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="open-login-btn">Log In</button>
+          <button type="button" class="btn btn-gold btn-sm" id="open-signup-btn">Sign Up</button>
+        </div>
+
+        <!-- Logged In View -->
+        <div id="logged-in-box" class="user-bar hidden">
+          <span id="nav-username" style="font-weight: 700;">User</span>
+          <span id="nav-role" class="role-badge">Member</span>
+          <span id="nav-balance" class="balance-pill" title="Click to Top Up Balance">$0.00 +</span>
+          <button type="button" class="btn btn-ghost btn-xs" id="logout-btn">Log Out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ==================== HOME PAGE ==================== -->
+    <section id="view-home" class="page-view active">
+      <div class="container">
+        <div class="hero">
+          <div class="hero-grid">
+            <div>
+              <div class="eyebrow">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                Next-Gen Script Hub
+              </div>
+              <h1 class="hero-title">
+                Precision Scripts.<br />
+                <span class="gold-gradient">Built to Dominate.</span>
+              </h1>
+              <p class="hero-subtitle">
+                Welcome to <strong>Aurox Scripts</strong> — a cloud-synced, ultra-fast script ecosystem engineered for stability, custom script execution, and zero frame drops.
+              </p>
+
+              <div class="hero-cta-row">
+                <button type="button" class="btn btn-gold" id="copy-hero-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy Universal Loader
+                </button>
+                <button type="button" class="btn btn-ghost" data-nav="premium">
+                  Explore Premium →
+                </button>
+              </div>
+
+              <div class="metrics-strip">
+                <div>
+                  <div class="metric-val">99.9%</div>
+                  <div class="metric-label">Cloud Uptime</div>
+                </div>
+                <div>
+                  <div class="metric-val">&lt;10ms</div>
+                  <div class="metric-label">Loader Response</div>
+                </div>
+                <div>
+                  <div class="metric-val">24/7</div>
+                  <div class="metric-label">Auto-Patch Sync</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interactive Aurox Loader Card -->
+            <div class="terminal-card">
+              <div class="terminal-header">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="terminal-tabs">
+                  <button type="button" class="term-tab active" data-term="loader">loader.lua</button>
+                  <button type="button" class="term-tab" data-term="console">console</button>
+                </div>
+              </div>
+
+              <div class="terminal-body" id="term-panel-loader">
+                <div class="code-line"><span class="ln">1</span><span class="tok-comment">-- Aurox Scripts Universal Hub v2.5</span></div>
+                <div class="code-line"><span class="ln">2</span><span><span class="tok-kw">getgenv</span>().AuroxConfig = {</span></div>
+                <div class="code-line"><span class="ln">3</span><span>  AutoExecute = <span class="tok-kw">true</span>,</span></div>
+                <div class="code-line"><span class="ln">4</span><span>  Theme = <span class="tok-str">"ObsidianGold"</span></span></div>
+                <div class="code-line"><span class="ln">5</span><span>}</span></div>
+                <div class="code-line"><span class="ln">6</span><span><span class="tok-fn">loadstring</span>(game:<span class="tok-fn">HttpGet</span>(<span class="tok-str">"https://omarmonna31-sketch.github.io/Website-Project/loader.lua"</span>))()</span></div>
+              </div>
+
+              <div class="terminal-body" id="term-panel-console" style="display: none;">
+                <div class="code-line"><span class="ln">&gt;</span><span class="tok-comment">[AUROX] Connecting to edge node...</span></div>
+                <div class="code-line"><span class="ln">&gt;</span><span>[AUROX] Signature verified <span class="tok-ok">(v2.5)</span></span></div>
+                <div class="code-line"><span class="ln">&gt;</span><span>[AUROX] Environment check: <span class="tok-ok">PASSED</span></span></div>
+                <div class="code-line"><span class="ln">&gt;</span><span class="tok-ok">✓ Aurox Hub initialized and ready.</span></div>
+              </div>
+
+              <div class="terminal-footer">
+                <span class="term-meta">SHA-256 Verified · LuaU</span>
+                <button type="button" class="btn btn-gold btn-xs" id="copy-term-btn">Copy Loadstring</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Published Scripts Hub Section -->
+        <div class="section">
+          <div class="section-head">
+            <div>
+              <h2 class="section-title">Scripts Library</h2>
+              <p class="section-desc">Official &amp; custom scripts published on Aurox Scripts.</p>
+            </div>
+            <button type="button" class="btn btn-gold btn-sm hidden" id="home-add-script-shortcut" data-nav="admin">
+              + Add New Script
+            </button>
+          </div>
+
+          <div class="scripts-grid" id="scripts-gallery"></div>
+        </div>
+
+        <!-- Core Capabilities -->
+        <div class="section">
+          <div class="section-head centered">
+            <h2 class="section-title">Engineered Without Compromise</h2>
+            <p class="section-desc">Built from scratch for fast execution, clean UI responsiveness, and instant updates.</p>
+          </div>
+
+          <div class="features-grid">
+            <article class="feature-card">
+              <div class="feature-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                </svg>
+              </div>
+              <h3>Zero-Lag Execution</h3>
+              <p>Optimized loops and native event listeners keep your framerate smooth during heavy automation.</p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </div>
+              <h3>Hardened Protection</h3>
+              <p>Dynamic environment checks help keep your sessions safe across upstream updates.</p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 18 22 12 16 6"></polyline>
+                  <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+              </div>
+              <h3>Instant Script Hub</h3>
+              <p>Copy any script directly from our verified library or run the universal Aurox loadstring.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PREMIUM PAGE ==================== -->
+    <section id="view-premium" class="page-view">
+      <div class="container">
+        <div class="premium-hero">
+          <div class="eyebrow">★ Aurox Premium Access</div>
+          <h1 class="hero-title">Unleash <span class="gold-gradient">Keyless Power.</span></h1>
+          <p class="hero-subtitle" style="margin: 0 auto 22px;">
+            Top up your account balance and unlock instant keyless execution, exclusive Pro scripts, and lifetime updates.
+          </p>
+          <button type="button" class="btn btn-ghost btn-sm" id="premium-topup-btn">+ Top Up Account Balance</button>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="price-card">
+            <div class="plan-tier">Standard</div>
+            <div class="plan-tagline">Public script hub access</div>
+            <div class="plan-price">
+              <span class="plan-amount">$0</span>
+              <span class="plan-period">/ forever</span>
+            </div>
+            <ul class="perk-list">
+              <li><span class="check-icon">✓</span><span>Access to public scripts</span></li>
+              <li><span class="check-icon">✓</span><span>Universal LuaU loader</span></li>
+              <li><span class="check-icon">✓</span><span>24-hour key checkpoint</span></li>
+            </ul>
+            <button type="button" class="btn btn-ghost" id="free-loader-btn">Copy Free Loader</button>
+          </div>
+
+          <div class="price-card featured">
+            <div class="popular-ribbon">Most Popular</div>
+            <div class="plan-tier" style="color: var(--gold-400);">Premium Lifetime</div>
+            <div class="plan-tagline">Pay once, own Aurox forever</div>
+            <div class="plan-price">
+              <span class="plan-amount">$14.99</span>
+              <span class="plan-period">/ one-time</span>
+            </div>
+            <ul class="perk-list">
+              <li><span class="check-icon">★</span><span><strong>100% Keyless</strong> HWID execution</span></li>
+              <li><span class="check-icon">★</span><span><strong>All Exclusive Pro Scripts</strong></span></li>
+              <li><span class="check-icon">★</span><span>Cloud Config Sync &amp; HWID Resets</span></li>
+              <li><span class="check-icon">★</span><span>Priority script requests</span></li>
+            </ul>
+            <button type="button" class="btn btn-gold buy-plan-btn" data-plan="Premium Lifetime" data-price="14.99">
+              Buy Lifetime ($14.99)
+            </button>
+          </div>
+
+          <div class="price-card">
+            <div class="plan-tier">Premium Monthly</div>
+            <div class="plan-tagline">30 days full Pro access</div>
+            <div class="plan-price">
+              <span class="plan-amount">$4.99</span>
+              <span class="plan-period">/ 30 days</span>
+            </div>
+            <ul class="perk-list">
+              <li><span class="check-icon">✓</span><span><strong>100% Keyless</strong> instant execution</span></li>
+              <li><span class="check-icon">✓</span><span>All Pro &amp; public scripts</span></li>
+              <li><span class="check-icon">✓</span><span>Self-serve HWID reset panel</span></li>
+            </ul>
+            <button type="button" class="btn btn-ghost buy-plan-btn" data-plan="Premium Monthly" data-price="4.99">
+              Buy Monthly ($4.99)
+            </button>
+          </div>
+        </div>
+
+        <div class="section-head centered">
+          <h2 class="section-title">Standard vs. Premium</h2>
+          <p class="section-desc">Everything included when you upgrade to Aurox Premium.</p>
+        </div>
+
+        <div class="compare-wrap">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Standard (Free)</th>
+                <th style="color: var(--gold-400);">Aurox Premium</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Authentication</td>
+                <td>24h Key System</td>
+                <td>Instant Keyless (HWID)</td>
+              </tr>
+              <tr>
+                <td>Exclusive Pro Scripts</td>
+                <td>—</td>
+                <td>Included</td>
+              </tr>
+              <tr>
+                <td>Saved Configurations</td>
+                <td>Local Only</td>
+                <td>Cloud-Synced Profiles</td>
+              </tr>
+              <tr>
+                <td>HWID Resets</td>
+                <td>—</td>
+                <td>Instant Self-Serve</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ADMIN & OWNER PANEL ==================== -->
+    <section id="view-admin" class="page-view">
+      <div class="container admin-wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">👑 Staff &amp; Owner Control Center</div>
+            <h2 class="section-title">Admin &amp; Owner Dashboard</h2>
+            <p class="section-desc">Add custom scripts with pictures, inspect user credentials &amp; account balances, and track Payment History.</p>
+          </div>
+        </div>
+
+        <!-- Overview Stats -->
+        <div class="admin-stats">
+          <div class="stat-box">
+            <div class="label">Registered Users</div>
+            <div class="val" id="stat-users">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Published Scripts</div>
+            <div class="val" id="stat-scripts">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Total Payments</div>
+            <div class="val" id="stat-payments">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label">Payment Volume</div>
+            <div class="val" id="stat-volume">$0.00</div>
+          </div>
+        </div>
+
+        <!-- Add Script + Manage Scripts Grid -->
+        <div class="admin-grid">
+          <div class="panel-card" style="margin-bottom: 0;">
+            <h3>➕ Add New Script</h3>
+            <p class="sub">Choose any picture from your device (or paste an image link), enter the Script Name, and paste the Script.</p>
+
+            <form id="add-script-form">
+              <div class="form-group">
+                <label for="script-name-input">Name of Script</label>
+                <input type="text" id="script-name-input" class="input" placeholder="e.g. Aurox Auto-Farm Hub" required />
+              </div>
+
+              <div class="form-group">
+                <label>Script Picture (Choose File or Paste Image URL)</label>
+                <div class="img-upload-box">
+                  <input type="file" id="script-img-file" accept="image/*" style="font-size: 0.8rem; color: var(--text-secondary); max-width: 100%;" />
+                  <div style="margin: 8px 0; font-size: 0.74rem; color: var(--text-muted);">— OR PASTE PICTURE LINK —</div>
+                  <input type="url" id="script-img-url" class="input" placeholder="https://example.com/script-image.png" />
+                  <img id="script-img-preview" class="img-preview" alt="Selected Script Picture Preview" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="script-code-input">The Script</label>
+                <textarea id="script-code-input" class="textarea" placeholder='loadstring(game:HttpGet("https://..."))() or raw Lua code' required></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-gold" style="width: 100%;">Publish Script to Home</button>
+            </form>
+          </div>
+
+          <div class="panel-card" style="margin-bottom: 0;">
+            <h3>📜 Manage Published Scripts</h3>
+            <p class="sub">All scripts currently live on the Home page.</p>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Picture</th>
+                    <th>Script Name</th>
+                    <th>Added By</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-scripts-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Account Table (Username, Password, Role, Balance) -->
+        <div class="panel-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <h3 style="margin-bottom: 4px;">👥 Users — Name, Password &amp; Account Balance</h3>
+              <p class="sub" style="margin-bottom: 0;">Restricted to Admins and Owner👑. Manage user balances and Admin permissions.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="admin-create-user-btn">+ Create User</button>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Password</th>
+                  <th>Role</th>
+                  <th>Plan</th>
+                  <th>Account Balance</th>
+                  <th>Controls</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Payment History Table -->
+        <div class="panel-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <h3 style="margin-bottom: 4px;">💳 Payment History</h3>
+              <p class="sub" style="margin-bottom: 0;">Full history of balance top-ups, Premium purchases, and recorded transactions.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="record-payment-btn">+ Record Payment</button>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>TX ID</th>
+                  <th>Username</th>
+                  <th>Details</th>
+                  <th>Amount</th>
+                  <th>Date &amp; Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="admin-payments-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Auth Modal (Log In / Sign Up) -->
+  <div class="modal-backdrop" id="auth-modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="auth-switch">
+        <button type="button" class="active" id="switch-login">Log In</button>
+        <button type="button" id="switch-signup">Sign Up</button>
+      </div>
+
+      <div id="auth-error" class="error-msg"></div>
+
+      <form id="auth-form">
+        <div class="form-group">
+          <label for="auth-username">Username</label>
+          <input type="text" id="auth-username" class="input" placeholder="Enter username" autocomplete="username" required />
+        </div>
+        <div class="form-group">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" class="input" placeholder="Enter password" autocomplete="current-password" required />
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; font-size: 0.8rem; color: var(--text-muted);">
+          <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="show-pass-toggle" /> Show password
+          </label>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-ghost" id="close-auth-btn" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn btn-gold" id="auth-submit-btn" style="flex: 1.4;">Log In</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Top-Up Balance Modal -->
+  <div class="modal-backdrop" id="topup-modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; margin-bottom: 8px;">Top Up Balance</h3>
+      <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 18px;">
+        Add funds to your Aurox account balance (saved automatically to Payment History).
+      </p>
+      <form id="topup-form">
+        <div class="form-group">
+          <label for="topup-amount">Amount (USD $)</label>
+          <input type="number" id="topup-amount" class="input" step="0.01" min="1" max="10000" value="15.00" required />
+        </div>
+        <div class="form-group">
+          <label for="topup-method">Payment Method</label>
+          <select id="topup-method" class="input">
+            <option value="Card / Stripe">Card / Stripe</option>
+            <option value="PayPal">PayPal</option>
+            <option value="Crypto (LTC / USDT)">Crypto (LTC / USDT)</option>
+            <option value="Gift Card">Gift Card</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 18px;">
+          <button type="button" class="btn btn-ghost" id="close-topup-btn" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn btn-gold" style="flex: 1.4;">Add Balance</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- View Full Script Modal -->
+  <div class="modal-backdrop" id="script-view-modal" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width: 560px;">
+      <h3 id="modal-script-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; margin-bottom: 12px;">Script</h3>
+      <textarea id="modal-script-code" class="textarea" readonly style="min-height: 170px; margin-bottom: 16px; color: var(--gold-400);"></textarea>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn btn-ghost btn-sm" id="close-script-modal-btn">Close</button>
+        <button type="button" class="btn btn-gold btn-sm" id="copy-modal-script-btn">Copy Script</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span style="color: var(--emerald-400);">✓</span>
+    <span id="toast-msg">Copied!</span>
+  </div>
+
+  <footer>
+    <div class="container footer-inner">
+      <div>© 2026 <strong style="color: var(--text-primary);">Aurox Scripts</strong>. All rights reserved.</div>
+      <div style="display: flex; gap: 16px;">
+        <a href="#home" data-nav="home" style="color: var(--text-secondary); text-decoration: none;">Home</a>
+        <a href="#premium" data-nav="premium" style="color: var(--text-secondary); text-decoration: none;">Premium</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const LOADER_SCRIPT = 'loadstring(game:HttpGet("https://omarmonna31-sketch.github.io/Website-Project/loader.lua"))()';
+
+      const DEFAULT_BANNER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">' +
+        '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#141c2e"/><stop offset="100%" stop-color="#070a12"/></linearGradient></defs>' +
+        '<rect width="640" height="360" fill="url(#g)"/>' +
+        '<circle cx="520" cy="70" r="140" fill="#f5b942" fill-opacity="0.14"/>' +
+        '<text x="44" y="182" fill="#ffd166" font-family="sans-serif" font-weight="700" font-size="34">AUROX SCRIPTS</text>' +
+        '<text x="44" y="220" fill="#94a0b8" font-family="monospace" font-size="16">Universal Loadstring Hub</text>' +
+        '</svg>'
+      );
+
+      const KEYS = {
+        USERS: 'aurox_users_db_v3',
+        SESSION: 'aurox_session_v3',
+        SCRIPTS: 'aurox_scripts_db_v3',
+        PAYMENTS: 'aurox_payments_db_v3'
+      };
+
+      function loadJSON(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch (_) {
+          return fallback;
+        }
+      }
+
+      function saveJSON(key, val) {
+        try {
+          localStorage.setItem(key, JSON.stringify(val));
+        } catch (_) {
+          showToast('Browser storage limit reached — try a smaller picture.');
+        }
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // Initialize Users & Guarantee Main Owner👑 Account
+      let users = loadJSON(KEYS.USERS, []);
+      const ownerUsername = 'ahhaksjshsksgdi';
+      const ownerPass = 'omaromar0990_';
+      const existingOwnerIdx = users.findIndex((u) => u.username === ownerUsername);
+
+      if (existingOwnerIdx === -1) {
+        users.unshift({
+          username: ownerUsername,
+          password: ownerPass,
+          role: 'Owner👑',
+          balance: 9999.00,
+          plan: 'Lifetime Owner'
+        });
+        saveJSON(KEYS.USERS, users);
+      } else {
+        users[existingOwnerIdx].password = ownerPass;
+        users[existingOwnerIdx].role = 'Owner👑';
+        if (typeof users[existingOwnerIdx].balance !== 'number') {
+          users[existingOwnerIdx].balance = 9999.00;
+        }
+        saveJSON(KEYS.USERS, users);
+      }
+
+      let scripts = loadJSON(KEYS.SCRIPTS, [
+        {
+          id: 'scr-universal',
+          name: 'Aurox Universal Hub v2.5',
+          image: DEFAULT_BANNER,
+          code: LOADER_SCRIPT,
+          author: 'ahhaksjshsksgdi (Owner👑)'
+        }
+      ]);
+      saveJSON(KEYS.SCRIPTS, scripts);
+
+      let payments = loadJSON(KEYS.PAYMENTS, [
+        {
+          id: 'TX-INIT01',
+          username: 'ahhaksjshsksgdi',
+          description: 'Owner Account Initialized',
+          amount: 9999.00,
+          date: '2026-10-30',
+          status: 'Completed'
+        }
+      ]);
+      saveJSON(KEYS.PAYMENTS, payments);
+
+      let currentUser = localStorage.getItem(KEYS.SESSION) || null;
+
+      function getCurrentUserObj() {
+        if (!currentUser) return null;
+        return users.find((u) => u.username === currentUser) || null;
+      }
+
+      function isStaff(user) {
+        return Boolean(user && (user.role === 'Owner👑' || user.role === 'Admin'));
+      }
+
+      // Toast & Clipboard
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      let toastTimer = null;
+
+      function showToast(msg) {
+        toastMsg.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2700);
+      }
+
+      function copyText(text, label) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => showToast(label)).catch(() => fallbackCopy(text, label));
+        } else {
+          fallbackCopy(text, label);
+        }
+      }
+
+      function fallbackCopy(text, label) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+        showToast(label);
+      }
+
+      // Page Navigation & Admin Protection
+      const views = {
+        home: document.getElementById('view-home'),
+        premium: document.getElementById('view-premium'),
+        admin: document.getElementById('view-admin')
+      };
+      const tabs = {
+        home: document.getElementById('tab-home'),
+        premium: document.getElementById('tab-premium'),
+        admin: document.getElementById('tab-admin')
+      };
+
+      function switchPage(page) {
+        const user = getCurrentUserObj();
+        let target = page;
+        if (target === 'admin' && !isStaff(user)) {
+          showToast('Restricted to Admins & Owner👑 only.');
+          target = 'home';
+        }
+        if (!views[target]) target = 'home';
+
+        Object.keys(views).forEach((k) => {
+          views[k].classList.toggle('active', k === target);
+          tabs[k].classList.toggle('active', k === target);
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      document.addEventListener('click', (e) => {
+        const navBtn = e.target.closest('[data-nav]');
+        if (navBtn) {
+          e.preventDefault();
+          switchPage(navBtn.getAttribute('data-nav'));
+        }
+      });
+
+      // Render Auth Header & Role Permissions
+      function renderAuthUI() {
+        const user = getCurrentUserObj();
+        const outBox = document.getElementById('logged-out-box');
+        const inBox = document.getElementById('logged-in-box');
+        const adminTab = document.getElementById('tab-admin');
+        const addShortcut = document.getElementById('home-add-script-shortcut');
+
+        if (!user) {
+          outBox.classList.remove('hidden');
+          inBox.classList.add('hidden');
+          adminTab.classList.add('hidden');
+          addShortcut.classList.add('hidden');
+          if (views.admin.classList.contains('active')) switchPage('home');
+          return;
+        }
+
+        outBox.classList.add('hidden');
+        inBox.classList.remove('hidden');
+        document.getElementById('nav-username').textContent = user.username;
+
+        const roleEl = document.getElementById('nav-role');
+        roleEl.textContent = user.role;
+        roleEl.className = 'role-badge ' + (user.role === 'Owner👑' ? 'owner' : user.role === 'Admin' ? 'admin' : '');
+
+        document.getElementById('nav-balance').textContent = '$' + Number(user.balance || 0).toFixed(2) + ' +';
+
+        if (isStaff(user)) {
+          adminTab.classList.remove('hidden');
+          addShortcut.classList.remove('hidden');
+          renderAdminDashboard();
+        } else {
+          adminTab.classList.add('hidden');
+          addShortcut.classList.add('hidden');
+          if (views.admin.classList.contains('active')) switchPage('home');
+        }
+      }
+
+      // Render Published Scripts on Home
+      function renderScriptsGallery() {
+        const gallery = document.getElementById('scripts-gallery');
+        if (!scripts.length) {
+          gallery.innerHTML = '<p style="color: var(--text-muted);">No scripts added yet.</p>';
+          return;
+        }
+
+        gallery.innerHTML = scripts.map((s) => `
+          <article class="script-card">
+            <img class="script-thumb" src="${escapeHtml(s.image || DEFAULT_BANNER)}" alt="${escapeHtml(s.name)}" />
+            <div class="script-card-body">
+              <h3>${escapeHtml(s.name)}</h3>
+              <div style="font-size: 0.76rem; color: var(--text-muted);">Added by ${escapeHtml(s.author || 'Owner👑')}</div>
+              <div class="script-code-preview">${escapeHtml(s.code)}</div>
+              <div class="script-card-actions">
+                <button type="button" class="btn btn-ghost btn-sm view-script-btn" data-id="${escapeHtml(s.id)}" style="flex: 0.8;">
+                  View
+                </button>
+                <button type="button" class="btn btn-gold btn-sm copy-script-btn" data-id="${escapeHtml(s.id)}" style="flex: 1.2;">
+                  Copy Script
+                </button>
+              </div>
+            </div>
+          </article>
+        `).join('');
+      }
+
+      // View / Copy Script Actions
+      const scriptViewModal = document.getElementById('script-view-modal');
+      let modalActiveScript = '';
+
+      document.getElementById('scripts-gallery').addEventListener('click', (e) => {
+        const copyBtn = e.target.closest('.copy-script-btn');
+        if (copyBtn) {
+          const found = scripts.find((s) => s.id === copyBtn.getAttribute('data-id'));
+          if (found) copyText(found.code, found.name + ' copied!');
+          return;
+        }
+        const viewBtn = e.target.closest('.view-script-btn');
+        if (viewBtn) {
+          const found = scripts.find((s) => s.id === viewBtn.getAttribute('data-id'));
+          if (!found) return;
+          modalActiveScript = found.code;
+          document.getElementById('modal-script-title').textContent = found.name;
+          document.getElementById('modal-script-code').value = found.code;
+          scriptViewModal.classList.add('open');
+        }
+      });
+
+      document.getElementById('close-script-modal-btn').addEventListener('click', () => {
+        scriptViewModal.classList.remove('open');
+      });
+      document.getElementById('copy-modal-script-btn').addEventListener('click', () => {
+        copyText(modalActiveScript, 'Script copied to clipboard!');
+        scriptViewModal.classList.remove('open');
+      });
+
+      // Render Admin & Owner Dashboard
+      function renderAdminDashboard() {
+        const me = getCurrentUserObj();
+        if (!isStaff(me)) return;
+
+        document.getElementById('stat-users').textContent = users.length;
+        document.getElementById('stat-scripts').textContent = scripts.length;
+        document.getElementById('stat-payments').textContent = payments.length;
+        const totalVol = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        document.getElementById('stat-volume').textContent = '$' + totalVol.toFixed(2);
+
+        // Users Table (Name, Password, Role, Balance)
+        const usersTbody = document.getElementById('admin-users-tbody');
+        usersTbody.innerHTML = users.map((u, idx) => {
+          const isTargetOwner = u.role === 'Owner👑';
+          const canManageRole = me.role === 'Owner👑' && !isTargetOwner;
+          return `
+            <tr>
+              <td><strong>${escapeHtml(u.username)}</strong></td>
+              <td class="mono" style="color: var(--gold-400);">${escapeHtml(u.password)}</td>
+              <td>
+                <span class="role-badge ${u.role === 'Owner👑' ? 'owner' : u.role === 'Admin' ? 'admin' : ''}">
+                  ${escapeHtml(u.role)}
+                </span>
+              </td>
+              <td>${escapeHtml(u.plan || 'Standard')}</td>
+              <td class="mono" style="color: var(--emerald-400); font-weight: 600;">$${Number(u.balance || 0).toFixed(2)}</td>
+              <td style="display: flex; gap: 6px;">
+                <button type="button" class="btn btn-ghost btn-xs edit-bal-btn" data-idx="${idx}">Set Balance</button>
+                ${canManageRole ? `
+                  <button type="button" class="btn btn-ghost btn-xs toggle-admin-btn" data-idx="${idx}">
+                    ${u.role === 'Admin' ? 'Remove Admin' : 'Make Admin'}
+                  </button>
+                ` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        // Manage Scripts Table
+        const scriptsTbody = document.getElementById('admin-scripts-tbody');
+        scriptsTbody.innerHTML = scripts.map((s) => `
+          <tr>
+            <td><img src="${escapeHtml(s.image || DEFAULT_BANNER)}" alt="" style="width: 50px; height: 32px; object-fit: cover; border-radius: 6px;" /></td>
+            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td style="color: var(--text-secondary);">${escapeHtml(s.author || 'Owner👑')}</td>
+            <td>
+              <button type="button" class="btn btn-danger btn-xs delete-script-btn" data-id="${escapeHtml(s.id)}">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+
+        // Payment History Table
+        const payTbody = document.getElementById('admin-payments-tbody');
+        if (!payments.length) {
+          payTbody.innerHTML = '<tr><td colspan="6" style="color: var(--text-muted); text-align: center; padding: 22px;">No payments yet.</td></tr>';
+        } else {
+          payTbody.innerHTML = payments.map((p) => `
+            <tr>
+              <td class="mono">${escapeHtml(p.id)}</td>
+              <td><strong>${escapeHtml(p.username)}</strong></td>
+              <td>${escapeHtml(p.description)}</td>
+              <td class="mono" style="color: var(--emerald-400); font-weight: 600;">$${Number(p.amount).toFixed(2)}</td>
+              <td style="color: var(--text-secondary);">${escapeHtml(p.date)}</td>
+              <td><span style="color: var(--emerald-400); font-weight: 600;">● ${escapeHtml(p.status)}</span></td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      // Admin User Controls
+      document.getElementById('admin-users-tbody').addEventListener('click', (e) => {
+        const me = getCurrentUserObj();
+        if (!isStaff(me)) return;
+
+        const balBtn = e.target.closest('.edit-bal-btn');
+        if (balBtn) {
+          const idx = Number(balBtn.getAttribute('data-idx'));
+          const target = users[idx];
+          if (!target) return;
+          const input = prompt('Set new balance ($) for ' + target.username + ':', Number(target.balance || 0).toFixed(2));
+          if (input === null) return;
+          const parsed = parseFloat(input);
+          if (isNaN(parsed) || parsed < 0) {
+            showToast('Invalid balance amount.');
+            return;
+          }
+          target.balance = parsed;
+          saveJSON(KEYS.USERS, users);
+          renderAuthUI();
+          renderAdminDashboard();
+          showToast('Updated balance for ' + target.username);
+        }
+
+        const roleBtn = e.target.closest('.toggle-admin-btn');
+        if (roleBtn && me.role === 'Owner👑') {
+          const idx = Number(roleBtn.getAttribute('data-idx'));
+          const target = users[idx];
+          if (!target || target.role === 'Owner👑') return;
+          target.role = target.role === 'Admin' ? 'Member' : 'Admin';
+          saveJSON(KEYS.USERS, users);
+          renderAdminDashboard();
+          showToast(target.username + ' role updated to ' + target.role);
+        }
+      });
+
+      document.getElementById('admin-create-user-btn').addEventListener('click', () => {
+        const me = getCurrentUserObj();
+        if (!isStaff(me)) return;
+        const uname = prompt('New account username:');
+        if (!uname || !uname.trim()) return;
+        if (users.some((u) => u.username.toLowerCase() === uname.trim().toLowerCase())) {
+          showToast('Username already exists.');
+          return;
+        }
+        const pass = prompt('Password for ' + uname.trim() + ':');
+        if (!pass) return;
+        const bal = parseFloat(prompt('Starting balance ($):', '0.00')) || 0;
+        users.push({
+          username: uname.trim(),
+          password: pass,
+          role: 'Member',
+          balance: bal,
+          plan: 'Standard'
+        });
+        saveJSON(KEYS.USERS, users);
+        renderAdminDashboard();
+        showToast('User ' + uname.trim() + ' created!');
+      });
+
+      document.getElementById('admin-scripts-tbody').addEventListener('click', (e) => {
+        const delBtn = e.target.closest('.delete-script-btn');
+        if (!delBtn) return;
+        const id = delBtn.getAttribute('data-id');
+        scripts = scripts.filter((s) => s.id !== id);
+        saveJSON(KEYS.SCRIPTS, scripts);
+        renderScriptsGallery();
+        renderAdminDashboard();
+        showToast('Script deleted.');
+      });
+
+      document.getElementById('record-payment-btn').addEventListener('click', () => {
+        const uname = prompt('Username:', currentUser || 'ahhaksjshsksgdi');
+        if (!uname) return;
+        const desc = prompt('Payment description:', 'Premium Lifetime Key');
+        if (!desc) return;
+        const amt = parseFloat(prompt('Amount ($):', '14.99'));
+        if (isNaN(amt) || amt <= 0) return;
+
+        recordPayment(uname.trim(), desc.trim(), amt);
+        renderAdminDashboard();
+        showToast('Payment added to history!');
+      });
+
+      function recordPayment(username, description, amount) {
+        payments.unshift({
+          id: 'TX-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          username,
+          description,
+          amount: Number(amount),
+          date: new Date().toLocaleString(),
+          status: 'Completed'
+        });
+        saveJSON(KEYS.PAYMENTS, payments);
+      }
+
+      // Add Script Image Picker (Device Upload + Image URL + Live Preview)
+      let uploadedImageData = '';
+      const fileInput = document.getElementById('script-img-file');
+      const urlInput = document.getElementById('script-img-url');
+      const imgPreview = document.getElementById('script-img-preview');
+
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+          const img = new Image();
+          img.onload = function () {
+            const canvas = document.createElement('canvas');
+            const maxW = 640;
+            const maxH = 360;
+            let w = img.width;
+            let h = img.height;
+            const ratio = Math.min(maxW / w, maxH / h, 1);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            uploadedImageData = canvas.toDataURL('image/jpeg', 0.84);
+            imgPreview.src = uploadedImageData;
+            imgPreview.style.display = 'block';
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      urlInput.addEventListener('input', () => {
+        const val = urlInput.value.trim();
+        if (val) {
+          imgPreview.src = val;
+          imgPreview.style.display = 'block';
+        } else if (!uploadedImageData) {
+          imgPreview.style.display = 'none';
+        }
+      });
+
+      document.getElementById('add-script-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const me = getCurrentUserObj();
+        if (!isStaff(me)) return;
+
+        const name = document.getElementById('script-name-input').value.trim();
+        const code = document.getElementById('script-code-input').value.trim();
+        const chosenImg = uploadedImageData || urlInput.value.trim() || DEFAULT_BANNER;
+
+        if (!name || !code) return;
+
+        scripts.unshift({
+          id: 'scr-' + Date.now(),
+          name,
+          image: chosenImg,
+          code,
+          author: me.username + ' (' + me.role + ')'
+        });
+        saveJSON(KEYS.SCRIPTS, scripts);
+
+        e.target.reset();
+        uploadedImageData = '';
+        imgPreview.style.display = 'none';
+
+        renderScriptsGallery();
+        renderAdminDashboard();
+        showToast('Script "' + name + '" published!');
+      });
+
+      // Auth Modal (Log In & Sign Up)
+      const authModal = document.getElementById('auth-modal');
+      const authForm = document.getElementById('auth-form');
+      const authError = document.getElementById('auth-error');
+      const switchLoginBtn = document.getElementById('switch-login');
+      const switchSignupBtn = document.getElementById('switch-signup');
+      const authSubmitBtn = document.getElementById('auth-submit-btn');
+      let authMode = 'login';
+
+      function setAuthMode(mode) {
+        authMode = mode;
+        authError.style.display = 'none';
+        switchLoginBtn.classList.toggle('active', mode === 'login');
+        switchSignupBtn.classList.toggle('active', mode === 'signup');
+        authSubmitBtn.textContent = mode === 'login' ? 'Log In' : 'Sign Up';
+      }
+
+      document.getElementById('open-login-btn').addEventListener('click', () => {
+        setAuthMode('login');
+        authModal.classList.add('open');
+      });
+
+      document.getElementById('open-signup-btn').addEventListener('click', () => {
+        setAuthMode('signup');
+        authModal.classList.add('open');
+      });
+
+      switchLoginBtn.addEventListener('click', () => setAuthMode('login'));
+      switchSignupBtn.addEventListener('click', () => setAuthMode('signup'));
+
+      document.getElementById('close-auth-btn').addEventListener('click', () => {
+        authModal.classList.remove('open');
+      });
+
+      document.getElementById('show-pass-toggle').addEventListener('change', (e) => {
+        document.getElementById('auth-password').type = e.target.checked ? 'text' : 'password';
+      });
+
+      authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('auth-username').value.trim();
+        const password = document.getElementById('auth-password').value;
+
+        if (!username || !password) return;
+
+        if (authMode === 'login') {
+          const found = users.find((u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+          if (!found) {
+            authError.textContent = 'Incorrect username or password.';
+            authError.style.display = 'block';
+            return;
+          }
+          currentUser = found.username;
+          localStorage.setItem(KEYS.SESSION, currentUser);
+          authModal.classList.remove('open');
+          authForm.reset();
+          renderAuthUI();
+          showToast('Signed in as ' + found.username + ' (' + found.role + ')');
+        } else {
+          const exists = users.some((u) => u.username.toLowerCase() === username.toLowerCase());
+          if (exists) {
+            authError.textContent = 'Username already registered.';
+            authError.style.display = 'block';
+            return;
+          }
+          const newUser = {
+            username,
+            password,
+            role: 'Member',
+            balance: 0.00,
+            plan: 'Standard'
+          };
+          users.push(newUser);
+          saveJSON(KEYS.USERS, users);
+          currentUser = newUser.username;
+          localStorage.setItem(KEYS.SESSION, currentUser);
+          authModal.classList.remove('open');
+          authForm.reset();
+          renderAuthUI();
+          showToast('Account created! Welcome, ' + newUser.username);
+        }
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', () => {
+        currentUser = null;
+        localStorage.removeItem(KEYS.SESSION);
+        renderAuthUI();
+        showToast('Logged out.');
+      });
+
+      // Top-Up & Buy Premium
+      const topupModal = document.getElementById('topup-modal');
+
+      function openTopup() {
+        if (!getCurrentUserObj()) {
+          setAuthMode('login');
+          authModal.classList.add('open');
+          showToast('Log in first to add balance.');
+          return;
+        }
+        topupModal.classList.add('open');
+      }
+
+      document.getElementById('nav-balance').addEventListener('click', openTopup);
+      document.getElementById('premium-topup-btn').addEventListener('click', openTopup);
+      document.getElementById('close-topup-btn').addEventListener('click', () => topupModal.classList.remove('open'));
+
+      document.getElementById('topup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const user = getCurrentUserObj();
+        if (!user) return;
+        const amt = parseFloat(document.getElementById('topup-amount').value);
+        const method = document.getElementById('topup-method').value;
+        if (isNaN(amt) || amt <= 0) return;
+
+        user.balance = Number(user.balance || 0) + amt;
+        saveJSON(KEYS.USERS, users);
+        recordPayment(user.username, 'Balance Top-Up (' + method + ')', amt);
+
+        topupModal.classList.remove('open');
+        renderAuthUI();
+        showToast('+$' + amt.toFixed(2) + ' added to balance!');
+      });
+
+      document.querySelectorAll('.buy-plan-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const user = getCurrentUserObj();
+          if (!user) {
+            setAuthMode('login');
+            authModal.classList.add('open');
+            showToast('Log in or Sign up to purchase Premium.');
+            return;
+          }
+          const plan = btn.getAttribute('data-plan');
+          const price = parseFloat(btn.getAttribute('data-price'));
+
+          if (Number(user.balance || 0) < price) {
+            openTopup();
+            showToast('Insufficient balance ($' + Number(user.balance || 0).toFixed(2) + '). Top up first!');
+            return;
+          }
+
+          user.balance = Number(user.balance) - price;
+          user.plan = plan;
+          saveJSON(KEYS.USERS, users);
+          recordPayment(user.username, 'Purchased ' + plan, price);
+          renderAuthUI();
+          showToast('🎉 ' + plan + ' activated!');
+        });
+      });
+
+      // Terminal Tabs & Loader Copy
+      document.querySelectorAll('[data-term]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = btn.getAttribute('data-term');
+          document.querySelectorAll('[data-term]').forEach((t) => t.classList.toggle('active', t === btn));
+          document.getElementById('term-panel-loader').style.display = mode === 'loader' ? 'block' : 'none';
+          document.getElementById('term-panel-console').style.display = mode === 'console' ? 'block' : 'none';
+        });
+      });
+
+      document.getElementById('copy-hero-btn').addEventListener('click', () => copyText(LOADER_SCRIPT, 'Universal Loadstring copied!'));
+      document.getElementById('copy-term-btn').addEventListener('click', () => copyText(LOADER_SCRIPT, 'Loadstring copied!'));
+      document.getElementById('free-loader-btn').addEventListener('click', () => copyText(LOADER_SCRIPT, 'Free Loadstring copied!'));
+
+      // Boot
+      renderScriptsGallery();
+      renderAuthUI();
+    })();
+  </script>
+</body>
+</html>
