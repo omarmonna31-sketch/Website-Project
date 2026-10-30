@@ -1,35 +1,23 @@
 {
-  "name": "Aurox Cloud VPS (Linux + Browser Desktop)",
-  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
-  "features": {
-    "ghcr.io/devcontainers/features/desktop-lite:1": {
-      "version": "latest",
-      "noVncVersion": "1.6.0",
-      "password": "aurox123",
-      "webPort": "6080",
-      "vncPort": "5901"
-    }
-  },
+  "name": "Windows 10 Pro VPS",
+  "service": "windows",
   "containerEnv": {
-    "VNC_RESOLUTION": "1920x1080x24"
+    "VERSION": "10"
   },
-  "forwardPorts": [6080, 8000],
+  "forwardPorts": [8006, 3389],
   "portsAttributes": {
-    "6080": {
-      "label": "Aurox Linux Desktop GUI (noVNC)",
-      "onAutoForward": "notify"
+    "8006": {
+      "label": "Windows 10 Desktop (Open in Browser)",
+      "onAutoForward": "openBrowser"
     },
-    "8000": {
-      "label": "Aurox Website Preview",
+    "3389": {
+      "label": "Windows 10 RDP",
       "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "bash .devcontainer/setup-vps.sh",
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
-      }
-    }
-  }
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "dockerComposeFile": "codespaces.yml",
+  "initializeCommand": "docker system prune --all --force"
 }
