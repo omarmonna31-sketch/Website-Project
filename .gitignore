@@ -1,0 +1,5 @@
+.devcontainer/windows/
+windows/
+*.iso
+*.img
+*.qcow2

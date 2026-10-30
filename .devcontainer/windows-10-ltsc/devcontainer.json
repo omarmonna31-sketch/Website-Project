@@ -1,0 +1,23 @@
+{
+  "name": "Windows 10 LTSC (Lightweight)",
+  "service": "windows",
+  "containerEnv": {
+    "VERSION": "10l"
+  },
+  "forwardPorts": [8006, 3389],
+  "portsAttributes": {
+    "8006": {
+      "label": "Windows 10 LTSC Desktop (Open in Browser)",
+      "onAutoForward": "openBrowser"
+    },
+    "3389": {
+      "label": "Windows 10 RDP",
+      "onAutoForward": "silent"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "dockerComposeFile": "../codespaces.yml",
+  "initializeCommand": "docker system prune --all --force"
+}
