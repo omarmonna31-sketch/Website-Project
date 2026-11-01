@@ -77,19 +77,30 @@ function makeBus(){const g=new THREE.Group();
  for(const z of [-2.32,2.3]){let wheel=cyl(.62,.62,.38,M.rubber,side*1.55,.64,z,g,20);wheel.rotation.z=Math.PI/2;let hub=cyl(.31,.31,.4,M.metal,side*1.76,.64,z,g,20);hub.rotation.z=Math.PI/2;let cap=cyl(.12,.12,.42,M.dark,side*1.78,.64,z,g,16);cap.rotation.z=Math.PI/2}}
  box(2.8,1.3,.05,M.glass,0,2.62,-3.48,g,false);box(2.8,1.3,.05,M.glass,0,2.62,3.48,g,false);box(3,.12,.12,M.white,0,3.3,-3.5,g);box(3,.12,.12,M.white,0,1.94,-3.5,g);box(3,.12,.12,M.white,0,3.3,3.5,g);box(3,.12,.12,M.white,0,1.94,3.5,g);
  box(3.2,.18,.22,M.metal,0,.79,-3.76,g);box(3.2,.18,.22,M.metal,0,.79,3.76,g);box(2.7,.35,.06,M.dark,0,1.14,-3.72,g);for(const side of [-1,1]){box(.5,.3,.08,mat(0xffe4a9),side*1.14,1.38,-3.75,g);box(.48,.3,.08,mat(0xb94d39),side*1.15,1.38,3.75,g);box(.32,.48,.42,M.dark,side*1.75,2.38,-2.95,g)}
+ // Body detailing: sliding door, mouldings, grille, wipers and mirror supports.
+ for(const side of [-1,1]){box(.025,1.7,2.05,mat(0xd5d4c9),side*1.58,1.49,.7,g);box(.03,.3,1.9,M.blue,side*1.61,1.4,.7,g);box(.04,.055,1.85,M.metal,side*1.62,1.88,.7,g);box(.06,.09,.28,M.dark,side*1.65,1.78,-.05,g);box(.07,.07,1.05,M.metal,side*1.62,2.05,-2.7,g)}
+ box(2.15,.22,.07,mat(0x38403d),0,1.15,-3.77,g);for(let i=-3;i<=3;i++)box(.035,.2,.08,M.metal,i*.29,1.15,-3.82,g);
+ for(const side of [-1,1]){const wiper=box(1,.035,.04,M.dark,side*.65,2.02,-3.53,g);wiper.rotation.z=side*.12;box(.2,.25,.08,mat(0xd39e4f),side*1.39,1.38,-3.77,g)}
+ box(.98,.25,.06,mat(0xe3ddc9),0,1.15,3.8,g);const plate=new THREE.Mesh(new THREE.PlaneGeometry(.8,.18),label('مصر ١٢٣','#e8e1ce','#253831'));plate.position.set(0,1.16,3.84);g.add(plate);
  const rearSign=new THREE.Mesh(new THREE.PlaneGeometry(2.2,.38),label('إمبابة - التحرير','#e7dac0','#263b37'));rearSign.position.set(0,3.28,3.53);g.add(rearSign);
  for(const z of [-.55,1.15,2.7]){box(2.5,.2,.65,M.seat,0,1.55,z,g);box(2.5,.82,.16,M.seat,0,2.03,z+.35,g)}
  const riders=[];for(let i=0;i<8;i++){const p=makeHuman(characterShirts[i],i,true),x=(i%3-1)*.8,z=[-.55,1.15,2.7][Math.floor(i/3)];p.scale.setScalar(.78);p.position.set(x,.95,z);p.visible=false;g.add(p);riders.push(p)}
  return {mesh:g,riders}}
 const {mesh:bus,riders}=makeBus();scene.add(bus);
 function makeCar(color){const g=new THREE.Group();box(3,.85,5.3,mat(color),0,1,0,g);box(2.75,.95,2.6,mat(color),0,1.9,.25,g);box(2.45,.65,.04,M.glass,0,2,-1.08,g,false);box(2.45,.65,.04,M.glass,0,2,1.58,g,false);for(const s of [-1,1])for(const z of [-1.6,1.6]){const w=cyl(.52,.52,.28,M.rubber,s*1.5,.55,z,g);w.rotation.z=Math.PI/2}return g}
-const traffic=[];for(let i=0;i<7;i++){const car=makeCar(pick([0xe0d8c4,0x677d79,0x925f50,0xc5a878,0x4f6265]));car.position.set(i%2?-5:5,0,-250+i*75);if(i%2)car.rotation.y=Math.PI;scene.add(car);traffic.push({mesh:car,dir:i%2?1:-1,speed:5+rnd()*5})}
+const traffic=[];for(let i=0;i<7;i++){const car=makeCar(pick([0xe0d8c4,0x677d79,0x925f50,0xc5a878,0x4f6265]));car.position.set(i%2?-5:5,0,-250+i*75);if(i%2)car.rotation.y=Math.PI;scene.add(car);traffic.push({mesh:car,dir:i%2?1:-1,speed:5+rnd()*5,currentSpeed:0})}
 function person(x,z,shirt,index=0){const p=makeHuman(shirt,index);p.position.set(x,0,z);scene.add(p);return p}
 const stops=[{name:'موقف إمبابة',x:5,z:-95,people:2,desc:'اتجه للموقف واستنى الركاب'}, {name:'شارع الوحدة',x:5,z:-220,people:3,desc:'وصّل الركاب ولمّ ناس تانية'}, {name:'ميدان الكيت كات',x:120,z:-235,people:3,desc:'لف يمين من التقاطع للموقف'}, {name:'محطة التحرير',x:235,z:-120,people:0,desc:'وصّل الركاب لنهاية المشوار'}];
 const stopGroups=stops.map((s,i)=>{const group=new THREE.Group();scene.add(group);const marker=new THREE.Mesh(new THREE.TorusGeometry(5,.15,8,48),new THREE.MeshBasicMaterial({color:0xe9c47b}));marker.rotation.x=Math.PI/2;marker.position.set(s.x,.12,s.z);group.add(marker);cyl(.11,.12,4,M.dark,s.x+7,2,s.z,group);box(2.4,1.2,.15,M.blue,s.x+7,4.4,s.z,group);const panel=new THREE.Mesh(new THREE.PlaneGeometry(2.1,.95),label('موقف','#315a69'));panel.position.set(s.x+7,4.4,s.z+.1);group.add(panel);let persons=[];for(let p=0;p<Math.max(2,s.people);p++)persons.push(person(s.x+8+p*.8,s.z+2+p*.8,pick([0x647a78,0x9d705c,0xd4c4a7,0x586678])));return {group,marker,persons}});
 // Cockpit belongs to the bus, not the camera: looking around leaves the wheel in place.
 const cockpit=new THREE.Group();bus.add(cockpit);cockpit.position.set(-.72,2.75,-2.05);cockpit.visible=false;
-box(4,.5,1.1,mat(0x323b38),0,-1.05,-1.3,cockpit);box(4,.2,.3,mat(0x252c2a),0,-.8,-1.7,cockpit);box(.9,.18,.3,mat(0x151d1c),.55,-.78,-1.62,cockpit);box(.4,.16,.05,M.metal,.55,-.73,-1.79,cockpit);box(1,.26,.3,mat(0x212a28),-.45,-.74,-1.53,cockpit);
+// A compact dashboard within the cabin instead of the oversized dark slab.
+const dashMat=mat(0x62665c,{roughness:.75}),dashTrim=mat(0x999381,{metalness:.15,roughness:.65});
+const dashShape=new THREE.Shape();dashShape.moveTo(-.82,-1.23);dashShape.lineTo(2.12,-1.23);dashShape.lineTo(2.04,-.92);dashShape.quadraticCurveTo(1.95,-.85,1.8,-.85);dashShape.lineTo(.22,-.85);dashShape.quadraticCurveTo(-.12,-.76,-.48,-.87);dashShape.lineTo(-.79,-.89);dashShape.closePath();
+const dash=new THREE.Mesh(new THREE.ExtrudeGeometry(dashShape,{depth:.14,bevelEnabled:true,bevelThickness:.035,bevelSize:.035,bevelSegments:2}),dashMat);dash.position.z=-1.53;cockpit.add(dash);
+box(.72,.13,.04,dashTrim,1.1,-.99,-1.35,cockpit);box(.42,.085,.045,mat(0x303a37),1.1,-.98,-1.32,cockpit);for(let i=0;i<4;i++)box(.055,.07,.05,mat(0x353d38),.66+i*.11,-1.11,-1.32,cockpit);
+const gaugeTexture=texture((c,w,h)=>{c.fillStyle='#303b38';c.fillRect(0,0,w,h);for(const x of [150,360]){c.fillStyle='#111c1a';c.beginPath();c.arc(x,67,52,0,Math.PI*2);c.fill();c.strokeStyle='#c6bba0';c.lineWidth=3;c.stroke();for(let i=0;i<9;i++){const a=Math.PI*.75+i*Math.PI*.19;c.beginPath();c.moveTo(x+39*Math.cos(a),67+39*Math.sin(a));c.lineTo(x+46*Math.cos(a),67+46*Math.sin(a));c.stroke()}c.strokeStyle='#e8bb70';c.beginPath();c.moveTo(x,67);c.lineTo(x-25,35);c.stroke()}},512,128);
+const gauges=new THREE.Mesh(new THREE.PlaneGeometry(.82,.22),new THREE.MeshBasicMaterial({map:gaugeTexture}));gauges.position.set(-.30,-.91,-1.34);cockpit.add(gauges);
 const wheelGroup=new THREE.Group();wheelGroup.position.set(-.35,-.68,-1.23);cockpit.add(wheelGroup);
 const wheel=new THREE.Mesh(new THREE.TorusGeometry(.43,.045,16,56),mat(0x202725,{roughness:.5}));wheelGroup.add(wheel);
 const trim=new THREE.Mesh(new THREE.TorusGeometry(.39,.009,8,56),M.metal);trim.position.z=-.005;wheelGroup.add(trim);
@@ -98,7 +109,8 @@ const hub=cyl(.15,.15,.09,M.dark,0,0,.02,wheelGroup,24);hub.rotation.x=Math.PI/2
 const armMaterial=mat(0x53645a),handSkin=mat(0xb78060),arms=[];
 function link(a,b,r,m,parent){const mesh=cyl(r,r,1,m,0,0,0,parent,12);setLink(mesh,a,b);return mesh}
 function setLink(mesh,a,b){const d=new THREE.Vector3().subVectors(b,a);mesh.position.copy(a).add(b).multiplyScalar(.5);mesh.scale.y=d.length();mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize())}
-for(const side of [-1,1]){const shoulder=new THREE.Vector3(side*.72,-1.22,-.65),elbow=new THREE.Vector3(side*.65,-1.02,-.95),grip=new THREE.Vector3(side*.4,.1,.06).add(wheelGroup.position);const upper=link(shoulder,elbow,.105,armMaterial,cockpit),fore=link(elbow,grip,.085,armMaterial,cockpit),hand=new THREE.Group();cockpit.add(hand);oval(.105,handSkin,0,0,0,.8,1.2,.55,hand);for(let i=0;i<4;i++)oval(.027,handSkin,(i-1.5)*.043,.10,-.01,.7,2,.7,hand);oval(.03,handSkin,-side*.09,.02,.02,.8,1.9,.8,hand);arms.push({side,shoulder,elbow,upper,fore,hand})}
+for(const side of [-1,1]){const shoulder=new THREE.Vector3(side*.72,-1.22,-.65),elbow=new THREE.Vector3(side*.65,-1.02,-.95),grip=new THREE.Vector3(side*.4,.1,.06).add(wheelGroup.position);const upper=link(shoulder,elbow,.105,armMaterial,cockpit),fore=link(elbow,grip,.085,armMaterial,cockpit),hand=new THREE.Group();cockpit.add(hand);oval(.105,handSkin,0,0,0,.8,1.2,.55,hand);// A smooth gripping hand, without protruding individual fingers.
+ oval(.075,handSkin,0,.06,-.02,.8,.72,.65,hand);arms.push({side,shoulder,elbow,upper,fore,hand})}
 function animateHands(angle){for(const a of arms){const grip=new THREE.Vector3(a.side*.4,.1,.08).applyAxisAngle(new THREE.Vector3(0,0,1),angle).add(wheelGroup.position);const elbow=new THREE.Vector3(a.side*.67,-1.08,-.84);elbow.x+=grip.x*.08;setLink(a.upper,a.shoulder,elbow);setLink(a.fore,elbow,grip);a.hand.position.copy(grip);a.hand.rotation.z=angle-a.side*.18}}
 // Controls, trip state, and free driving.
 let playing=false,routeCompleted=false,velocity=0,heading=0,steering=0,stopIndex=0,passengerCount=0,fare=0,dwell=0,hitCooldown=0,sound=false,audioCtx,msgTimer=0,firstPerson=false,lookYaw=0,lookPitch=0,paying=false,payees=[],lookedPayee=null;
@@ -107,7 +119,7 @@ function msg(text,time=3){$('message').textContent=text;$('message').classList.r
 function beep(freq=440,duration=.12){if(!sound)return;try{audioCtx ||= new AudioContext();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.045,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration)}catch(e){}}
 function updateHUD(){const s=stops[stopIndex];$('stopName').textContent=paying?'لمّ الأجرة':s?s.name:'جولة حرة';$('stopDesc').textContent=paying?'بص للركاب اللي نزلوا واجمع الأجرة':s?s.desc:'لف في المنطقة براحتك';document.querySelector('.route-no').textContent=s?`0${stopIndex+1} / 04`:'حر';$('passengers').innerHTML=`${passengerCount} <small>/ 8</small>`;$('fare').innerHTML=`${fare} <small>ج.م</small>`;$('routeProgress').style.width=`${stopIndex/4*100}%`;riders.forEach((p,i)=>p.visible=i<passengerCount)}
 function setView(value){firstPerson=value;cockpit.visible=value;$('lookControls').classList.toggle('hidden',!value);$('reticle').classList.toggle('hidden',!value);$('cameraBtn').innerHTML=value?'◉ <span>منظور خارجي</span>':'◉ <span>منظور السائق</span>';camera.fov=value?72:60;camera.updateProjectionMatrix()}
-function start(){payees.forEach(p=>scene.remove(p));payees=[];paying=false;lookedPayee=null;lookYaw=0;lookPitch=0;$('farePanel').classList.add('hidden');playing=true;routeCompleted=false;velocity=0;heading=0;steering=0;stopIndex=0;passengerCount=0;fare=0;dwell=0;bus.position.set(5,0,35);bus.rotation.y=0;traffic.forEach((c,i)=>{c.mesh.position.z=-250+i*75});stopGroups.forEach(s=>{s.group.visible=true;s.persons.forEach(p=>p.visible=true)});$('intro').classList.add('hidden');$('sceneCaption').classList.add('hidden');$('edition').classList.add('hidden');$('finish').classList.add('hidden');$('hud').classList.remove('hidden');app.classList.add('playing');setView(true);updateHUD();msg('اسحب الشاشة للبص حواليك. اتجه للموقف على الخريطة',5);beep(550)}
+function start(){payees.forEach(p=>scene.remove(p));payees=[];paying=false;lookedPayee=null;lookYaw=0;lookPitch=0;$('farePanel').classList.add('hidden');playing=true;routeCompleted=false;velocity=0;heading=0;steering=0;stopIndex=0;passengerCount=0;fare=0;dwell=0;bus.position.set(5,0,35);bus.rotation.y=0;traffic.forEach((c,i)=>{c.mesh.position.z=-250+i*75;c.currentSpeed=0});stopGroups.forEach(s=>{s.group.visible=true;s.persons.forEach(p=>p.visible=true)});$('intro').classList.add('hidden');$('sceneCaption').classList.add('hidden');$('edition').classList.add('hidden');$('finish').classList.add('hidden');$('hud').classList.remove('hidden');app.classList.add('playing');setView(true);updateHUD();msg('اسحب الشاشة للبص حواليك. اتجه للموقف على الخريطة',5);beep(550)}
 $('startBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('continueBtn').addEventListener('click',()=>{$('finish').classList.add('hidden');playing=true;msg('كمّل جولتك في المنطقة براحتك',3)});
 $('cameraBtn').addEventListener('click',()=>setView(!firstPerson));$('soundBtn').addEventListener('click',()=>{sound=!sound;$('soundText').textContent=sound?'الصوت شغال':'الصوت مغلق';$('soundBtn').setAttribute('aria-label',sound?'إغلاق الصوت':'تشغيل الصوت');if(sound)beep(600)});
 const map={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',' ':'brake',j:'lookLeft',J:'lookLeft',l:'lookRight',L:'lookRight'};
@@ -130,17 +142,43 @@ function collectPayment(){const p=gazePayment();if(!p)return;p.userData.paid=tru
 const mapCtx=$('minimap').getContext('2d');
 function drawMap(){const c=mapCtx,w=180,scale=w/600; c.fillStyle='#9a9e86';c.fillRect(0,0,w,w);c.fillStyle='#596962';for(const r of roads){c.fillRect((r+300-12)*scale,0,24*scale,w);c.fillRect(0,(r+300-12)*scale,w,24*scale)}const toX=x=>(x+300)*scale,toY=z=>(z+300)*scale;const target=stops[stopIndex];if(target){c.fillStyle='#e9c16f';c.beginPath();c.arc(toX(target.x),toY(target.z),4,0,Math.PI*2);c.fill();c.strokeStyle='#e9c16faa';c.beginPath();c.moveTo(toX(bus.position.x),toY(bus.position.z));c.lineTo(toX(target.x),toY(target.z));c.stroke()}c.save();c.translate(toX(bus.position.x),toY(bus.position.z));c.rotate(-heading);c.fillStyle='#fff8e5';c.beginPath();c.moveTo(0,-6);c.lineTo(4,4);c.lineTo(0,2);c.lineTo(-4,4);c.closePath();c.fill();c.restore()}
 function collides(x,z){if(Math.abs(x)>LIMIT||Math.abs(z)>LIMIT)return true;return buildingBounds.some(b=>x+1.8>b.minX&&x-1.8<b.maxX&&z+1.8>b.minZ&&z-1.8<b.maxZ)}
+// Oriented rectangle collision keeps the bus and traffic solid, including during turns.
+function vehicleOverlap(x,z,angle,otherX,otherZ,otherAngle){
+ const axes=(a)=>[{x:Math.cos(a),z:-Math.sin(a)},{x:Math.sin(a),z:Math.cos(a)}];
+ const aa=axes(angle),bb=axes(otherAngle),dx=otherX-x,dz=otherZ-z;
+ for(const axis of [...aa,...bb]){const dot=(v)=>Math.abs(v.x*axis.x+v.z*axis.z);const distance=Math.abs(dx*axis.x+dz*axis.z);const r=1.55*dot(aa[0])+3.7*dot(aa[1])+1.5*dot(bb[0])+2.65*dot(bb[1]);if(distance>=r)return false}return true;
+}
+function moveTraffic(dt){
+ for(const car of traffic){const pos=car.mesh.position;let gap=Infinity;
+  // Cars brake for the player's current oriented footprint and for vehicles ahead in their lane.
+  const busWidth=1.55*Math.abs(Math.cos(heading))+3.7*Math.abs(Math.sin(heading));
+  const busLength=1.55*Math.abs(Math.sin(heading))+3.7*Math.abs(Math.cos(heading));
+  const delta=(bus.position.z-pos.z)*car.dir;
+  if(Math.abs(bus.position.x-pos.x)<busWidth+1.65&&delta>=0)gap=Math.min(gap,delta-busLength-2.65-1.2);
+  for(const other of traffic){if(other===car||Math.abs(other.mesh.position.x-pos.x)>3.1)continue;const ahead=(other.mesh.position.z-pos.z)*car.dir;if(ahead>=0)gap=Math.min(gap,ahead-5.3-1.2)}
+  const target=gap<10?Math.min(car.speed,Math.max(0,gap)*1.4):car.speed;
+  car.currentSpeed=THREE.MathUtils.lerp(car.currentSpeed,target,Math.min(1,dt*(target<car.currentSpeed?8:2)));
+  const distance=Math.min(car.currentSpeed*dt,Math.max(0,gap));let nextZ=pos.z+car.dir*distance;
+  if(nextZ>280||nextZ< -280){const spawn=-car.dir*280;const occupied=(Math.abs(bus.position.x-pos.x)<busWidth+1.65&&Math.abs(bus.position.z-spawn)<busLength+5)||traffic.some(other=>other!==car&&Math.abs(other.mesh.position.x-pos.x)<3.1&&Math.abs(other.mesh.position.z-spawn)<8);if(occupied){nextZ=car.dir*280;car.currentSpeed=0}else{nextZ=spawn;car.currentSpeed=0}}
+  pos.z=nextZ;
+ }
+}
 const clock=new THREE.Clock();
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);
  if(playing){
   if(firstPerson){lookYaw=THREE.MathUtils.clamp(lookYaw+((keys.lookLeft?1:0)-(keys.lookRight?1:0))*1.7*dt,-3,3)}
   if(!paying){
    if(keys.up)velocity+=12*dt;else if(keys.down)velocity-=12*dt;else velocity*=Math.exp(-1.2*dt);if(keys.brake)velocity*=Math.exp(-5*dt);velocity=THREE.MathUtils.clamp(velocity,-7,24);if(Math.abs(velocity)<.05)velocity=0;
-   const input=(keys.right?1:0)-(keys.left?1:0);steering=THREE.MathUtils.lerp(steering,input,Math.min(1,dt*5));heading-=steering*velocity*.017*dt;bus.rotation.y=heading;
-   const nx=bus.position.x-Math.sin(heading)*velocity*dt,nz=bus.position.z-Math.cos(heading)*velocity*dt;
-   hitCooldown=Math.max(0,hitCooldown-dt);if(!collides(nx,nz)){bus.position.x=nx;bus.position.z=nz}else{velocity*=-.12;if(hitCooldown===0){msg(Math.abs(nx)>LIMIT||Math.abs(nz)>LIMIT?'دي نهاية المنطقة المتاحة، لف وارجع':'بالراحة يا أسطى! خد بالك من المباني',2);hitCooldown=2;beep(160,.2)}}
-   traffic.forEach(c=>{c.mesh.position.z+=c.dir*c.speed*dt;if(c.mesh.position.z>280)c.mesh.position.z=-280;if(c.mesh.position.z< -280)c.mesh.position.z=280;if(hitCooldown===0&&Math.hypot(c.mesh.position.x-bus.position.x,c.mesh.position.z-bus.position.z)<4.2){velocity*=.2;hitCooldown=2;msg('خلي بالك من العربيات!',2);beep(160,.2)}});
-   const target=stops[stopIndex];const dist=target?Math.round(Math.hypot(bus.position.x-target.x,bus.position.z-target.z)):0;$('distance').textContent=target?`${dist} م`:'—';$('speed').textContent=Math.round(Math.abs(velocity)*3);document.querySelectorAll('.speed-bars i').forEach((b,i)=>b.classList.toggle('on',i<Math.abs(velocity)/2.4));
+   const input=(keys.right?1:0)-(keys.left?1:0);steering=THREE.MathUtils.lerp(steering,input,Math.min(1,dt*9));const nextHeading=heading-steering*THREE.MathUtils.clamp(velocity*.08,-1.15,1.15)*dt;
+   const nx=bus.position.x-Math.sin(nextHeading)*velocity*dt,nz=bus.position.z-Math.cos(nextHeading)*velocity*dt;
+   hitCooldown=Math.max(0,hitCooldown-dt);
+   const trafficHit=traffic.some(car=>{const p=car.mesh.position;if(!vehicleOverlap(nx,nz,nextHeading,p.x,p.z,car.mesh.rotation.y))return false;
+    // If already touching (e.g. after a restart), let the driver move away.
+    if(vehicleOverlap(bus.position.x,bus.position.z,heading,p.x,p.z,car.mesh.rotation.y)){return Math.hypot(nx-p.x,nz-p.z)<=Math.hypot(bus.position.x-p.x,bus.position.z-p.z)}return true});
+   const buildingHit=collides(nx,nz);
+   if(!buildingHit&&!trafficHit){bus.position.x=nx;bus.position.z=nz;heading=nextHeading;bus.rotation.y=heading}else{velocity=0;if(hitCooldown===0){msg(trafficHit?'خلي بالك من العربية! ارجع أو لف بعيد':'دي نهاية المنطقة أو في مبنى قدامك',2);hitCooldown=2;beep(160,.2)}}
+   moveTraffic(dt);
+   const target=stops[stopIndex];const dist=target?Math.round(Math.hypot(bus.position.x-target.x,bus.position.z-target.z)):0;$('distance').textContent=target?`${dist} م`:'—';$('speed').textContent=Math.round(Math.abs(velocity)*3);$('gear').textContent=velocity<-.1?'R':'D';document.querySelectorAll('.speed-bars i').forEach((b,i)=>b.classList.toggle('on',i<Math.abs(velocity)/2.4));
    if(target&&dist<11&&Math.abs(velocity)<2){dwell+=dt;if(dwell>1.2){if(stopIndex<3){passengerCount+=target.people;msg(`تمام! ركب ${target.people} من الركاب. كمل مشوارك`,3);beep(740,.2)}else{beginPayment()}stopGroups[stopIndex].group.visible=false;stopGroups[stopIndex].persons.forEach(p=>p.visible=false);stopIndex++;dwell=0;updateHUD()}}else{dwell=0;if(target&&dist<25&&Math.abs(velocity)>3&&msgTimer<=0)msg('الموقف قرب! اهدى واقف عشان الركاب',2)}
   }else{$('speed').textContent='0'}
   if(msgTimer>0){msgTimer-=dt;if(msgTimer<=0)$('message').classList.add('hidden')};drawMap();
