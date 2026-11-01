@@ -24,7 +24,7 @@
     <section class="intro" id="intro" aria-labelledby="intro-title">
       <div class="eyebrow"><span></span> لعبة قيادة مصرية <b>•</b> العب مجاناً</div>
       <h1 id="intro-title">اركب معانا<br><em>خط إمبابة.</em></h1>
-      <p>الشارع شارعك، والمشوار حكايتك.<br>خد الدركسيون، لمّ الركاب ووصّلهم بالسلامة.</p>
+      <p>الشارع شارعك، والمشوار حكايتك.<br>لف بحرية في شوارع إمبابة، ولمّ الركاب ووصّلهم بالسلامة.</p>
       <button class="start-btn" id="startBtn" type="button"><span>يلا بينا نتحرك</span><span class="arrow">↖</span></button>
       <div class="intro-bottom"><span class="round-play">▶</span><span>جاهز للمشوار؟<br><strong>العب مباشرة من المتصفح</strong></span></div>
     </section>
@@ -35,11 +35,12 @@
       <div class="route-card"><div class="card-label"><span class="live-dot"></span> خط السير <span class="route-no">01 / 04</span></div><h2 id="stopName">موقف إمبابة</h2><div class="route-desc" id="stopDesc">اتجه للموقف واستنى الركاب</div><div class="progress"><i id="routeProgress"></i></div><div class="route-foot"><span>المسافة للموقف</span><strong id="distance">١٢٠ م</strong></div></div>
       <div class="stats"><div><span>الركاب</span><strong id="passengers">0 <small>/ 8</small></strong></div><div><span>الأجرة</span><strong id="fare">0 <small>ج.م</small></strong></div></div>
       <div class="message hidden" id="message"></div>
+      <div class="world-tools"><button id="cameraBtn" type="button" title="تغيير الكاميرا (C)">◉ <span>منظور السائق</span></button><div class="map-wrap"><div class="map-title">خريطة المنطقة <span>شمال ↑</span></div><canvas id="minimap" width="180" height="180" aria-label="خريطة المنطقة والموقف التالي"></canvas><div class="map-legend"><i></i> أنت <b></b> الموقف</div></div></div>
       <div class="speedometer"><div class="speed-top">السرعة</div><div><strong id="speed">0</strong><span>كم/س</span></div><div class="speed-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-      <div class="controls-hint"><span>↑</span><span>↓</span><span>←</span><span>→</span><p>استخدم الأسهم أو WASD للقيادة <b>•</b> مسافة للفرامل</p></div>
+      <div class="controls-hint"><span>↑</span><span>↓</span><span>←</span><span>→</span><p>الأسهم أو WASD للقيادة <b>•</b> مسافة للفرامل <b>•</b> C للكاميرا</p></div>
       <div class="touch-controls" aria-label="أزرار التحكم"><div><button data-key="left" aria-label="يسار">◀</button><button data-key="right" aria-label="يمين">▶</button></div><div><button data-key="brake" aria-label="فرامل">فرامل</button><button data-key="up" aria-label="بنزين">بنزين</button></div></div>
     </section>
-    <div class="finish hidden" id="finish"><div class="finish-card"><span class="finish-icon">✳</span><div class="eyebrow">وصلنا بالسلامة</div><h2>عاش يا أسطى!</h2><p>خلصت مشوارك ووصلت الركاب. يومية حلوة ورزق على الله.</p><div class="finish-total">إجمالي الأجرة <strong id="finalFare">٠ ج.م</strong></div><button class="start-btn" id="restartBtn">مشوار جديد <span class="arrow">↖</span></button></div></div>
+    <div class="finish hidden" id="finish"><div class="finish-card"><span class="finish-icon">✳</span><div class="eyebrow">وصلنا بالسلامة</div><h2>عاش يا أسطى!</h2><p>وصلت الركاب بالسلامة! تقدر تكمل لف في المنطقة أو تبدأ خط جديد.</p><div class="finish-total">إجمالي الأجرة <strong id="finalFare">٠ ج.م</strong></div><button class="start-btn" id="continueBtn">كمّل لف في المنطقة <span class="arrow">↖</span></button><button class="restart-link" id="restartBtn">ابدأ الخط من جديد</button></div></div>
     <div class="loading" id="loading"><span class="brand-icon">✳</span><span>بنجهّز المشوار...</span></div>
     <div class="error hidden" id="error">المتصفح ده مش قادر يشغّل اللعبة. جرّب متصفح أحدث بيدعم WebGL.</div>
   </main>
