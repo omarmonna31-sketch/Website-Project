@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Bus Driver 3D — 5 Routes</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b1020;font-family:'Segoe UI',system-ui,Arial,sans-serif;color:#fff}
+  #game{position:fixed;inset:0}
+  canvas{display:block}
+  .hidden{display:none!important}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+  #topbar{position:absolute;top:14px;left:14px;display:flex;gap:10px;flex-wrap:wrap}
+  .pill{background:rgba(8,15,35,.78);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px);
+    border-radius:999px;padding:9px 16px;font-weight:800;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .pill small{display:block;font-size:10px;letter-spacing:.14em;opacity:.65;font-weight:700}
+  #moneyPill{color:#7CFC9A;border-color:rgba(124,252,154,.4)}
+  #task{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:min(560px,92vw);text-align:center;
+    background:rgba(8,15,35,.82);border:1px solid rgba(255,209,102,.45);border-radius:18px;padding:12px 18px;backdrop-filter:blur(8px)}
+  #taskTitle{font-size:18px;font-weight:900;color:#FFD166}
+  #taskSub{font-size:13px;opacity:.85;margin-top:3px;line-height:1.45}
+  #speedo{position:absolute;right:18px;bottom:18px;width:132px;height:132px;border-radius:50%;
+    background:radial-gradient(circle at 50% 45%,#1c2b52,#081026 70%);border:3px solid rgba(255,255,255,.22);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+  #speedVal{font-size:38px;font-weight:900;line-height:1}
+  #speedo span{font-size:11px;letter-spacing:.2em;opacity:.7;font-weight:800}
+  #gear{font-size:12px;color:#7dd3fc;font-weight:900;margin-top:3px}
+  /* Minimap */
+  #mapWrap{position:absolute;left:16px;bottom:16px;width:230px;background:rgba(8,15,35,.82);border:1px solid rgba(255,255,255,.2);
+    border-radius:18px;padding:10px;backdrop-filter:blur(8px)}
+  #mapWrap h4{font-size:11px;letter-spacing:.16em;opacity:.8;margin:0 0 7px 2px}
+  #minimap{width:210px;height:210px;border-radius:12px;background:#12203f;display:block}
+  #controlsHint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(8,15,35,.72);
+    border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 16px;font-size:12.5px;white-space:nowrap;backdrop-filter:blur(8px)}
+  kbd{background:#fff;color:#111;border-radius:5px;padding:1px 6px;font-family:inherit;font-weight:800;font-size:11px}
+  /* Gaze ring */
+  #gazeWrap{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);text-align:center}
+  #gazeRing{width:84px;height:84px;margin:0 auto;border-radius:50%;border:5px solid rgba(255,255,255,.25);position:relative}
+  #gazeFill{position:absolute;inset:-5px;border-radius:50%;border:5px solid #7CFC9A;clip-path:inset(100% 0 0 0)}
+  #gazeWrap p{margin-top:9px;font-weight:900;text-shadow:0 2px 10px #000;font-size:15px}
+  #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:22px;opacity:.85;text-shadow:0 1px 6px #000}
+  #toast{position:absolute;left:50%;top:22%;transform:translateX(-50%);background:#16a34a;border-radius:14px;
+    padding:13px 24px;font-size:20px;font-weight:900;box-shadow:0 14px 34px rgba(0,0,0,.45);opacity:0;transition:.25s}
+  #toast.show{opacity:1;top:20%}
+  #vignette{position:absolute;inset:0;box-shadow:inset 0 0 140px rgba(0,0,0,.55)}
+
+  /* ---------- Screens ---------- */
+  .screen{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(1000px 600px at 20% 10%,rgba(56,130,246,.35),transparent 60%),
+               radial-gradient(900px 600px at 85% 90%,rgba(250,204,21,.18),transparent 60%),rgba(4,8,20,.88);backdrop-filter:blur(4px)}
+  .panel{width:min(980px,96vw);max-height:92vh;overflow:auto;background:rgba(10,18,40,.92);border:1px solid rgba(255,255,255,.16);
+    border-radius:26px;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .panel h1{font-size:42px;line-height:1.05;letter-spacing:-.02em}
+  .panel h1 em{color:#FFD166;font-style:normal}
+  .panel .sub{opacity:.82;margin:10px 0 22px;line-height:1.6;max-width:720px}
+  .routes{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:13px}
+  .route{pointer-events:auto;cursor:pointer;text-align:left;color:#fff;border-radius:18px;padding:16px;border:2px solid rgba(255,255,255,.14);
+    background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02));transition:.15s;font-family:inherit}
+  .route:hover{transform:translateY(-3px);border-color:#FFD166}
+  .route .num{font-size:26px;font-weight:900}
+  .route .name{font-weight:800;margin:4px 0}
+  .route .meta{font-size:12px;opacity:.75;line-height:1.5}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:22px}
+  .how div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:13px 15px;font-size:13.5px;line-height:1.6}
+  .bigbtn{pointer-events:auto;cursor:pointer;margin-top:22px;background:#FFD166;color:#111;border:0;border-radius:999px;
+    padding:15px 30px;font-size:17px;font-weight:900;font-family:inherit;box-shadow:0 12px 28px rgba(255,209,102,.3)}
+  .bigbtn:hover{filter:brightness(1.07)}
+  #endStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+  #endStats div{background:rgba(255,255,255,.06);border-radius:14px;padding:16px;text-align:center}
+  #endStats b{font-size:30px;display:block;color:#7CFC9A}
+  button{pointer-events:auto}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="vignette"></div>
+  <div id="topbar">
+    <div class="pill" id="moneyPill"><small>MONEY EARNED</small>$<span id="money">0</span></div>
+    <div class="pill"><small>ROUTE</small><span id="routeName">—</span></div>
+    <div class="pill"><small>PASSENGERS</small>🧑 <span id="paxCount">0</span> on board</div>
+    <div class="pill"><small>DELIVERED</small>✅ <span id="delivered">0</span></div>
+  </div>
+  <div id="task"><div id="taskTitle">Pick a route</div><div id="taskSub"></div></div>
+  <div id="mapWrap"><h4>🗺️ MINI MAP — YOUR ROUTE</h4><canvas id="minimap" width="420" height="420"></canvas></div>
+  <div id="speedo"><div id="speedVal">0</div><span>KM/H</span><div id="gear">PARK</div></div>
+  <div id="crosshair" class="hidden">+</div>
+  <div id="gazeWrap" class="hidden"><div id="gazeRing"><div id="gazeFill"></div></div><p>👀 Keep looking at the passenger…</p></div>
+  <div id="toast"></div>
+  <div id="controlsHint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive · <kbd>Space</kbd> brake · <kbd>E</kbd> doors · <kbd>V</kbd> first / third person · <kbd>Click bus</kbd> mouse-look · <kbd>R</kbd> routes</div>
+</div>
+
+<!-- START / ROUTE SELECT -->
+<div class="screen" id="menu">
+  <div class="panel">
+    <h1>🚌 City Bus <em>Driver 3D</em></h1>
+    <p class="sub">You are the bus driver. Pick one of <b>5 routes</b>, follow the glowing route on the
+    <b>mini-map</b>, pick up your passengers, drive them through town — and when a passenger gets off,
+    they will stand <b>in front of the door</b>. Switch to <b>first-person</b>, look right at them, and only then you get paid!</p>
+    <div class="routes" id="routeCards"></div>
+    <div class="how">
+      <div>🚏 <b>Pick up &amp; drop off</b><br>Stop inside the glowing stop zone, press <kbd>E</kbd> to open the doors.</div>
+      <div>🎥 <b>First person</b><br>Press <kbd>V</kbd> to sit in the driver seat — steering wheel + your hands. Click the bus to lock the mouse and <b>look anywhere</b>.</div>
+      <div>👀 <b>Get paid by looking</b><br>After a passenger steps off and stands by the door, look at them for 1.5 seconds to collect the fare. No look = no money!</div>
+      <div>🗺️ <b>Mini-map</b><br>The coloured line is your route, the yellow star is your next stop, the white arrow is your bus.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ROUTE COMPLETE -->
+<div class="screen hidden" id="endScreen">
+  <div class="panel" style="text-align:center">
+    <h1>🏁 Route <em>Complete!</em></h1>
+    <p class="sub" style="margin-left:auto;margin-right:auto">Great driving, driver! Every passenger reached their stop.</p>
+    <div id="endStats"></div>
+    <button class="bigbtn" id="againBtn">🗺️ Choose Another Route</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+/* ================= DATA ================= */
+const STOPS={
+  central:{name:"Central Station",x:0,z:80}, market:{name:"Old Market",x:-80,z:40}, school:{name:"Sunny School",x:-40,z:-40},
+  hospital:{name:"City Hospital",x:40,z:-80}, park:{name:"Green Park",x:80,z:0}, mall:{name:"Mega Mall",x:80,z:80},
+  harbour:{name:"Harbour Pier",x:-80,z:-80}, university:{name:"University",x:40,z:40}, stadium:{name:"Stadium",x:-40,z:80},
+  library:{name:"Library",x:0,z:-40}, beach:{name:"Beach Front",x:80,z:-80}, station2:{name:"North Station",x:-80,z:0}
+};
+const ROUTES=[
+ {id:1,name:"Downtown Loop",color:0xffd166,css:"#FFD166",fare:6,stops:["central","market","school","library"]},
+ {id:2,name:"Hospital Express",color:0x38bdf8,css:"#38BDF8",fare:8,stops:["stadium","university","hospital","beach"]},
+ {id:3,name:"Harbour Line",color:0x4ade80,css:"#4ADE80",fare:7,stops:["harbour","station2","market","central"]},
+ {id:4,name:"Campus Cruiser",color:0xf472b6,css:"#F472B6",fare:6,stops:["university","park","mall","central"]},
+ {id:5,name:"Grand City Tour",color:0xa78bfa,css:"#A78BFA",fare:10,stops:["harbour","school","library","hospital","park","mall"]}
+];
+const NAMES=["Ahmed","Sara","Omar","Layla","Yusuf","Mona","Karim","Nour","Hassan","Fatima","Ali","Dina","Tarek","Hana","Samir","Reem"];
+
+/* ================= THREE SETUP ================= */
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x87c5eb);
+scene.fog=new THREE.Fog(0x87c5eb,120,420);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,600);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+$("game").appendChild(renderer.domElement);
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+scene.add(new THREE.AmbientLight(0xffffff,.55));
+const sun=new THREE.DirectionalLight(0xfff2cc,1.5); sun.position.set(80,120,40); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-160;sun.shadow.camera.right=160;sun.shadow.camera.top=160;sun.shadow.camera.bottom=-160;
+scene.add(sun);
+const M=(c,r=.85,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+function box(w,h,d,c,x=0,y=0,z=0,parent=scene,shadow=true){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));o.position.set(x,y,z);o.castShadow=shadow;o.receiveShadow=true;parent.add(o);return o;}
+function cyl(rt,rb,h,c,x=0,y=0,z=0,parent=scene,seg=14){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),M(c));o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
+
+/* ================= TOWN ================= */
+const WORLD=210, ROADS=[-80,-40,0,40,80];
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(WORLD*2,WORLD*2),M(0x58a447,1)); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+ROADS.forEach(v=>{
+  box(8,.06,WORLD*2,0x2f3542,v,.03,0,scene,false); box(.25,.07,WORLD*2,0xfacc15,v,.06,0,scene,false);
+  box(WORLD*2,.06,8,0x2f3542,0,.03,v,scene,false); box(WORLD*2,.07,.25,0xfacc15,0,.06,v,scene,false);
+  // pavements
+  box(1.6,.12,WORLD*2,0x9ca3af,v-5,.06,0,scene,false); box(1.6,.12,WORLD*2,0x9ca3af,v+5,.06,0,scene,false);
+  box(WORLD*2,.12,1.6,0x9ca3af,0,.06,v-5,scene,false); box(WORLD*2,.12,1.6,0x9ca3af,0,.06,v+5,scene,false);
+});
+const buildingCols=[0xfca5a5,0xfcd34d,0x93c5fd,0xa7f3d0,0xd8b4fe,0xfed7aa,0xe5e7eb,0xfda4af];
+let rng=7; const rand=()=>{rng=(rng*16807)%2147483647;return rng/2147483647;};
+for(let gx=-100;gx<=100;gx+=20)for(let gz=-100;gz<=100;gz+=20){
+  if(ROADS.some(r=>Math.abs(r-gx)<11||Math.abs(r-gz)<11)) continue;
+  const x=gx+(rand()*6-3),z=gz+(rand()*6-3);
+  if(rand()<.22){ // park / trees
+    for(let t=0;t<4;t++){const tx=x+rand()*10-5,tz=z+rand()*10-5;cyl(.18,.25,1.6,0x8b5a2b,tx,.8,tz);const s=new THREE.Mesh(new THREE.SphereGeometry(1.5+rand(),9,8),M(0x2f9e44));s.position.set(tx,3,tz);s.castShadow=true;scene.add(s);}
+  }else{
+    const h=6+rand()*16,w=9+rand()*5,d=9+rand()*5,c=buildingCols[Math.floor(rand()*buildingCols.length)];
+    box(w,h,d,c,x,h/2,z); box(w+1,.6,d+1,0x374151,x,h+.3,z);
+    for(let wy=2.2;wy<h-1;wy+=2.6)for(let wx=-w/2+1.6;wx<w/2;wx+=2.4){const win=box(1.1,1.3,.1,rand()<.5?0xfde68a:0x334155,x+wx,wy,z+d/2+.03,scene,false);win.castShadow=false;}
+  }
+}
+// street lamps
+ROADS.forEach(v=>{for(let t=-100;t<=100;t+=33){cyl(.09,.09,5,0x475569,v-5.4,2.5,t,scene,8);const l=box(.9,.18,.4,0xfef08a,v-5,5,t,scene,false);l.castShadow=false;}});
+
+/* bus stops */
+const stopObjs={};
+Object.entries(STOPS).forEach(([key,s])=>{
+  const g=new THREE.Group(); g.position.set(s.x+6.5,0,s.z); scene.add(g);
+  cyl(.09,.09,3.1,0x1e293b,0,1.55,0,g,8);
+  const sign=box(2.4,1,.14,0x2563eb,0,2.9,0,g); sign.castShadow=false;
+  const roof=box(4.6,.14,1.6,0x0f172a,0,2.45,1,g); roof.castShadow=true;
+  cyl(.07,.07,2.4,0x64748b,-2,1.2,1,g,8); cyl(.07,.07,2.4,0x64748b,2,1.2,1,g,8);
+  box(3.8,.12,.6,0x92400e,0,.65,1,g);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(3.4,4.4,36),new THREE.MeshBasicMaterial({color:0xffd166,transparent:true,opacity:.85,side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=.09; g.add(ring); g.userData.ring=ring;
+  const label=makeLabel(s.name); label.position.set(0,4,0); g.add(label);
+  stopObjs[key]=g;
+});
+function makeLabel(text){
+  const c=document.createElement("canvas");c.width=512;c.height=96;const x=c.getContext("2d");
+  x.fillStyle="rgba(8,20,45,.92)";x.beginPath();x.roundRect(0,0,512,96,20);x.fill();
+  x.fillStyle="#fff";x.font="bold 40px Arial";x.textAlign="center";x.textBaseline="middle";x.fillText(text,256,50);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));
+  sp.scale.set(9,1.7,1); return sp;
+}
+
+/* moving traffic (simple, slow, decorative) */
+const traffic=[];
+for(let i=0;i<8;i++){
+  const horiz=i%2===0, road=ROADS[i%ROADS.length], dir=i%4<2?1:-1;
+  const g=new THREE.Group(); const col=buildingCols[i%buildingCols.length];
+  box(2,0.9,4.2,col,0,.75,0,g); box(1.7,.75,2,0x1e293b,0,1.5,-.2,g);
+  [[-.95,-1.4],[.95,-1.4],[-.95,1.4],[.95,1.4]].forEach(p=>{const w=cyl(.38,.38,.25,0x111827,p[0],.38,p[1],g,12);w.rotation.z=Math.PI/2;});
+  g.userData={horiz,road,dir,pos:-100+i*26,speed:7+(i%3)*2}; scene.add(g); traffic.push(g);
+}
+
+/* ================= BUS ================= */
+const bus=new THREE.Group(); scene.add(bus);
+box(2.6,.5,9,0x1e293b,0,.55,0,bus);                       // chassis
+box(2.7,1.7,9.1,0xf59e0b,0,1.75,0,bus);                    // body
+box(2.72,.55,9.12,0xffffff,0,2.85,0,bus);                  // roof band
+box(2.5,.9,.12,0x7dd3fc,0,2.15,4.58,bus);                  // windshield
+box(2.5,.8,.12,0x1e293b,0,2.1,-4.58,bus);
+for(let i=0;i<5;i++){box(.1,.85,1.25,0x7dd3fc,1.37,2.2,3-i*1.55,bus);box(.1,.85,1.25,0x7dd3fc,-1.37,2.2,3-i*1.55,bus);}
+box(.14,.28,6,0xffffff,1.36,1.25,0,bus);
+const doorL=box(.12,1.9,1.15,0xfbbf24,1.37,1.35,3.4,bus), doorR=box(.12,1.9,1.15,0xfbbf24,-1.37,1.35,3.4,bus);
+const wheels=[];
+[[-1.25,-3.1],[1.25,-3.1],[-1.25,3.1],[1.25,3.1]].forEach(p=>{const w=cyl(.55,.55,.35,0x111827,p[0],.55,p[1],bus,18);w.rotation.z=Math.PI/2;wheels.push(w);});
+box(2.2,.5,.15,0xfef08a,0,.85,4.62,bus,false); // headlights bar
+// seated passenger figures inside
+const seatPax=[];
+for(let i=0;i<6;i++){
+  const p=makePerson([0xef4444,0x3b82f6,0x22c55e,0xec4899,0x8b5cf6,0xf97316][i]);
+  p.position.set(i%2? .72:-.72,1.05,1.8-Math.floor(i/2)*1.7); p.visible=false; bus.add(p); seatPax.push(p);
+}
+function makePerson(col){
+  const g=new THREE.Group();
+  cyl(.26,.32,.75,col,0,.85,0,g,10);                                  // body
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,14,12),M(0xf2c79b)); head.position.y=1.5; head.castShadow=true; g.add(head);
+  cyl(.28,.28,.16,0x1f2937,0,1.68,0,g,10);                             // cap
+  box(.16,.55,.16,0x1f2937,-.18,.28,0,g); box(.16,.55,.16,0x1f2937,.18,.28,0,g); // legs
+  g.userData.head=head; return g;
+}
+
+/* First-person cockpit: attached to camera */
+const cockpit=new THREE.Group(); camera.add(cockpit); scene.add(camera);
+const dash=box(2.3,.5,.7,0x111827,0,-.52,-1.05,cockpit,false); dash.castShadow=false;
+box(1.7,.28,.1,0x38bdf8,0,-.32,-1.38,cockpit,false).castShadow=false; // dash screen
+const wheelGroup=new THREE.Group(); wheelGroup.position.set(-.48,-.38,-.95); cockpit.add(wheelGroup);
+const wheel=new THREE.Mesh(new THREE.TorusGeometry(.34,.045,10,28),M(0x0f172a,.5)); wheelGroup.add(wheel);
+box(.62,.07,.05,0x334155,0,0,0,wheelGroup,false); box(.07,.55,.05,0x334155,0,0,0,wheelGroup,false);
+const hub=cyl(.09,.09,.07,0xf59e0b,0,0,.02,wheelGroup,14); hub.rotation.x=Math.PI/2;
+// hands + arms on the wheel
+function makeHand(side){
+  const g=new THREE.Group();
+  const arm=box(.11,.11,.5,0x2563eb,0,0,.22,g,false); arm.castShadow=false;
+  const hand=new THREE.Mesh(new THREE.SphereGeometry(.095,12,10),M(0xf2c79b)); hand.scale.set(1,.75,1.25); g.add(hand);
+  g.position.set(side*.30,.10,.02); wheelGroup.add(g); return g;
+}
+const handL=makeHand(-1), handR=makeHand(1);
+cockpit.visible=false;
+
+/* ================= STATE ================= */
+const S={mode:"menu",route:null,leg:0,phase:"toPickup",busPos:new THREE.Vector3(0,0,100),heading:0,speed:0,steer:0,
+  paxOnBoard:0,waiting:null,exiting:null,gaze:0,money:0,delivered:0,doorOpen:false,firstPerson:false,
+  lookYaw:0,lookPitch:0,pointerLocked:false,targetStop:null,elapsed:0};
+const keys={};
+addEventListener("keydown",e=>{keys[e.code]=true;
+  if(e.code==="KeyV"&&S.mode==="drive")toggleCamera();
+  if(e.code==="KeyE"&&S.mode==="drive")tryDoors();
+  if(e.code==="KeyR"&&S.mode==="drive")backToMenu();
+  if(["ArrowUp","ArrowDown","Space"].includes(e.code))e.preventDefault();});
+addEventListener("keyup",e=>keys[e.code]=false);
+renderer.domElement.addEventListener("click",()=>{if(S.mode==="drive")renderer.domElement.requestPointerLock();});
+document.addEventListener("pointerlockchange",()=>{S.pointerLocked=document.pointerLockElement===renderer.domElement;$("crosshair").classList.toggle("hidden",!(S.pointerLocked&&S.firstPerson));});
+addEventListener("mousemove",e=>{if(!S.pointerLocked)return;S.lookYaw-=(e.movementX||0)*.0024;S.lookPitch-=(e.movementY||0)*.0022;
+  S.lookYaw=THREE.MathUtils.clamp(S.lookYaw,-2.6,2.6);S.lookPitch=THREE.MathUtils.clamp(S.lookPitch,-1,1);});
+
+/* ================= ROUTE FLOW ================= */
+const cards=$("routeCards");
+ROUTES.forEach(r=>{
+  const avg=r.stops.map(k=>STOPS[k].name).join(" → ");
+  const b=document.createElement("button"); b.className="route";
+  b.innerHTML=`<div class="num"><span class="dot" style="background:${r.css}"></span>${r.id}</div><div class="name">${r.name}</div>
+    <div class="meta">${r.stops.length} stops · $${r.fare} / passenger<br>${avg}</div>`;
+  b.onclick=()=>startRoute(r); cards.appendChild(b);
+});
+function startRoute(r){
+  Object.assign(S,{route:r,leg:0,money:S.money,phase:"toPickup",paxOnBoard:0,gaze:0,waiting:null,exiting:null,doorOpen:false,elapsed:0});
+  S.busPos.set(0,0,100); S.heading=Math.PI; S.speed=0;
+  $("menu").classList.add("hidden"); $("endScreen").classList.add("hidden"); $("hud").classList.remove("hidden");
+  $("routeName").textContent="#"+r.id+" "+r.name; S.mode="drive";
+  spawnWaiting(); updateTask(); toast("🚌 Route "+r.id+" started — follow the mini-map!");
+}
+function currentFrom(){return S.route.stops[S.leg];}
+function currentTo(){return S.route.stops[S.leg+1];}
+function spawnWaiting(){
+  const key=currentFrom(), s=STOPS[key];
+  if(S.waiting)scene.remove(S.waiting);
+  S.waiting=makePerson(0x3b82f6+Math.floor(Math.random()*0x555555));
+  S.waiting.position.set(s.x+6.5,0,s.z+1.8); S.waiting.rotation.y=-Math.PI/2;
+  S.waiting.userData.name=NAMES[Math.floor(Math.random()*NAMES.length)];
+  scene.add(S.waiting); S.targetStop=key;
+  seatPax.forEach(p=>p.visible=false);
+}
+function updateTask(extra){
+  const t=$("taskTitle"),sub=$("taskSub");
+  if(S.phase==="toPickup"){const s=STOPS[currentFrom()];t.textContent=`🚏 Go to ${s.name}`;sub.innerHTML=`Pick up <b>${S.waiting?S.waiting.userData.name:"your passenger"}</b> — they are going to <b>${STOPS[currentTo()].name}</b>. Stop in the yellow ring, then press <kbd>E</kbd>.`;}
+  else if(S.phase==="toDrop"){const s=STOPS[currentTo()];t.textContent=`🎯 Drive to ${s.name}`;sub.innerHTML=`<b>${S.paxOnBoard} passenger(s)</b> on board. Stop in the yellow ring at ${s.name} and press <kbd>E</kbd> to open the doors.`;}
+  else if(S.phase==="look"){t.textContent="👀 Look at your passenger to get paid!";sub.innerHTML=`They are standing <b>in front of the door</b>. Press <kbd>V</kbd> for first-person, click the bus, and look right at them for 1.5 seconds.`;}
+  if(extra)sub.innerHTML+=extra;
+  $("paxCount").textContent=S.paxOnBoard; $("delivered").textContent=S.delivered; $("money").textContent=S.money;
+}
+function nearStop(key){const s=STOPS[key];return Math.hypot(S.busPos.x-(s.x),S.busPos.z-s.z)<7.5;}
+function tryDoors(){
+  if(Math.abs(S.speed)>.5){toast("🛑 Stop the bus first!");return;}
+  if(S.phase==="toPickup"&&nearStop(currentFrom())){
+    S.doorOpen=true; animateDoors();
+    if(S.waiting){scene.remove(S.waiting);S.waiting=null;}
+    S.paxOnBoard=Math.min(6,S.route.stops.length-S.leg+1); // a few riders board together
+    seatPax.forEach((p,i)=>p.visible=i<S.paxOnBoard);
+    S.phase="toDrop"; S.targetStop=currentTo();
+    setTimeout(()=>{S.doorOpen=false;animateDoors();},900);
+    toast("🧑 Passengers boarded! Drive on ➜"); updateTask();
+  }else if(S.phase==="toDrop"&&nearStop(currentTo())){
+    S.doorOpen=true; animateDoors();
+    seatPax.forEach(p=>p.visible=false);
+    // passenger steps out and STANDS IN FRONT OF THE DOOR (right side of bus)
+    S.exiting=makePerson(0xec4899);
+    const side=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),S.heading);
+    const fwd=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),S.heading);
+    S.exiting.position.copy(S.busPos).addScaledVector(side,2.6).addScaledVector(fwd,3.4); S.exiting.position.y=0;
+    S.exiting.rotation.y=S.heading-Math.PI/2; scene.add(S.exiting);
+    S.phase="look"; S.gaze=0; updateTask();
+    toast("🚪 Passenger got off — look at them to collect the fare!");
+  }else toast("🚏 You are not at the right stop yet — follow the mini-map!");
+}
+function animateDoors(){doorL.position.z=3.4+(S.doorOpen?.55:0);doorR.position.z=3.4-(S.doorOpen?.55:0);}
+function collectFare(){
+  const fare=S.route.fare; S.money+=fare; S.delivered+=S.paxOnBoard; S.paxOnBoard=0;
+  toast(`💰 +$${fare} Fare collected! Thank you!`);
+  if(S.exiting){scene.remove(S.exiting);S.exiting=null;}
+  S.doorOpen=false; animateDoors(); S.leg++;
+  if(S.leg>=S.route.stops.length-1){finishRoute();}
+  else{S.phase="toPickup";spawnWaiting();updateTask();}
+  $("money").textContent=S.money;$("delivered").textContent=S.delivered;$("paxCount").textContent=0;
+}
+function finishRoute(){
+  S.mode="end"; document.exitPointerLock&&document.exitPointerLock();
+  $("endStats").innerHTML=`<div><b>$${S.money}</b>Total money</div><div><b>${S.delivered}</b>Passengers delivered</div><div><b>${Math.round(S.elapsed)}s</b>Time</div><div><b>${S.route.name}</b>Route</div>`;
+  $("hud").classList.add("hidden"); $("endScreen").classList.remove("hidden");
+}
+function backToMenu(){S.mode="menu";document.exitPointerLock&&document.exitPointerLock();$("hud").classList.add("hidden");$("endScreen").classList.add("hidden");$("menu").classList.remove("hidden");}
+$("againBtn").onclick=backToMenu;
+let toastTimer;
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),2600);}
+function toggleCamera(){S.firstPerson=!S.firstPerson;cockpit.visible=S.firstPerson;S.lookYaw=0;S.lookPitch=0;toast(S.firstPerson?"🎥 First-person — click the bus, then move the mouse to look anywhere!":"🎥 Third-person view");}
+
+/* ================= MINIMAP ================= */
+const mm=$("minimap").getContext("2d");
+function w2m(v){return (v+WORLD)/(WORLD*2)*420;}
+function drawMap(){
+  mm.clearRect(0,0,420,420); mm.fillStyle="#12203f"; mm.fillRect(0,0,420,420);
+  mm.strokeStyle="#3b4a6b"; mm.lineWidth=7;
+  ROADS.forEach(v=>{mm.beginPath();mm.moveTo(w2m(v),0);mm.lineTo(w2m(v),420);mm.stroke();mm.beginPath();mm.moveTo(0,w2m(v));mm.lineTo(420,w2m(v));mm.stroke();});
+  if(S.route){
+    mm.strokeStyle=S.route.css; mm.lineWidth=5; mm.setLineDash([10,7]); mm.beginPath();
+    S.route.stops.forEach((k,i)=>{const s=STOPS[k];i?mm.lineTo(w2m(s.x),w2m(s.z)):mm.moveTo(w2m(s.x),w2m(s.z));}); mm.stroke(); mm.setLineDash([]);
+    S.route.stops.forEach(k=>{const s=STOPS[k];mm.fillStyle="#fff";mm.beginPath();mm.arc(w2m(s.x),w2m(s.z),6,0,7);mm.fill();});
+    if(S.targetStop){const s=STOPS[S.targetStop];mm.fillStyle="#FFD166";mm.font="26px Arial";mm.textAlign="center";
+      mm.fillText("★",w2m(s.x),w2m(s.z)-12);
+      mm.strokeStyle="rgba(255,209,102,.8)";mm.lineWidth=3;mm.beginPath();mm.arc(w2m(s.x),w2m(s.z),13+Math.sin(performance.now()*.006)*4,0,7);mm.stroke();}
+  }
+  // bus arrow
+  mm.save(); mm.translate(w2m(S.busPos.x),w2m(S.busPos.z)); mm.rotate(-S.heading);
+  mm.fillStyle="#fff"; mm.beginPath(); mm.moveTo(0,-11); mm.lineTo(7,8); mm.lineTo(0,4); mm.lineTo(-7,8); mm.closePath(); mm.fill(); mm.restore();
+  if(S.waiting){mm.fillStyle="#60a5fa";mm.beginPath();mm.arc(w2m(S.waiting.position.x),w2m(S.waiting.position.z),5,0,7);mm.fill();}
+  if(S.exiting){mm.fillStyle="#f472b6";mm.beginPath();mm.arc(w2m(S.exiting.position.x),w2m(S.exiting.position.z),5,0,7);mm.fill();}
+}
+
+/* ================= MAIN LOOP ================= */
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05), now=performance.now()*.001;
+  if(S.mode==="drive"){
+    S.elapsed+=dt;
+    /* driving */
+    const accel=(keys.KeyW||keys.ArrowUp)?14:0, brake=(keys.Space)?26:0, rev=(keys.KeyS||keys.ArrowDown)?7:0;
+    if(accel)S.speed+=accel*dt; if(rev)S.speed-=rev*dt;
+    if(brake)S.speed-=Math.sign(S.speed)*Math.min(Math.abs(S.speed),brake*dt);
+    S.speed-=S.speed*.55*dt; S.speed=THREE.MathUtils.clamp(S.speed,-9,24);
+    if(Math.abs(S.speed)<.06&&!accel&&!rev)S.speed=0;
+    const steerIn=((keys.KeyA||keys.ArrowLeft)?1:0)-((keys.KeyD||keys.ArrowRight)?1:0);
+    S.steer+= (steerIn*.62-S.steer)*Math.min(1,dt*7);
+    if(Math.abs(S.speed)>.1)S.heading+=S.steer*dt*(S.speed>0?1:-1)*Math.min(1,Math.abs(S.speed)/7);
+    S.busPos.x+=Math.sin(S.heading)*S.speed*dt; S.busPos.z+=Math.cos(S.heading)*S.speed*dt;
+    S.busPos.x=THREE.MathUtils.clamp(S.busPos.x,-104,104); S.busPos.z=THREE.MathUtils.clamp(S.busPos.z,-104,104);
+    bus.position.copy(S.busPos); bus.rotation.y=S.heading;
+    wheels.forEach(w=>w.rotation.x+=S.speed*dt/.55);
+    wheelGroup.rotation.z=-S.steer*2.4;
+    handL.position.x=-.30+Math.sin(-S.steer*2.4)*.02; handR.position.x=.30-Math.sin(-S.steer*2.4)*.02;
+    $("speedVal").textContent=Math.round(Math.abs(S.speed)*3.6);
+    $("gear").textContent=S.speed>.3?"DRIVE":S.speed<-.3?"REVERSE":(S.doorOpen?"DOORS OPEN":"PARK");
+
+    /* highlight target stop ring */
+    Object.entries(stopObjs).forEach(([k,g])=>{const on=k===S.targetStop;g.userData.ring.visible=on;
+      if(on){g.userData.ring.scale.setScalar(1+Math.sin(now*4)*.08);g.userData.ring.material.color.set(S.route?S.route.color:0xffd166);}});
+    if(S.waiting)S.waiting.userData.head.position.y=1.5+Math.sin(now*3)*.04;
+    if(S.exiting){S.exiting.rotation.y+=Math.sin(now*2)*.003;S.exiting.userData.head.position.y=1.5+Math.abs(Math.sin(now*3))*.06;}
+
+    /* camera */
+    if(S.firstPerson){
+      const eye=new THREE.Vector3(-.55,2.35,2.6).applyAxisAngle(new THREE.Vector3(0,1,0),S.heading).add(S.busPos);
+      camera.position.copy(eye);
+      const yaw=S.heading+S.lookYaw, pitch=S.lookPitch;
+      const dir=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));
+      camera.lookAt(eye.clone().add(dir));
+    }else{
+      const back=new THREE.Vector3(0,0,-13).applyAxisAngle(new THREE.Vector3(0,1,0),S.heading);
+      const want=S.busPos.clone().add(back).add(new THREE.Vector3(0,6,0));
+      camera.position.lerp(want,.08); camera.lookAt(S.busPos.x,S.busPos.y+2,S.busPos.z);
+    }
+
+    /* ==== LOOK-AT-PASSENGER = GET PAID ==== */
+    if(S.phase==="look"&&S.exiting){
+      let looking=false;
+      if(S.firstPerson){
+        const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+        const to=S.exiting.position.clone().add(new THREE.Vector3(0,1.3,0)).sub(camera.position);
+        const dist=to.length(); to.normalize();
+        looking=dir.angleTo(to)<.26&&dist<14; // ~15° cone
+      }
+      if(looking){S.gaze+=dt;$("gazeWrap").classList.remove("hidden");
+        $("gazeFill").style.clipPath=`inset(${100-(S.gaze/1.5)*100}% 0 0 0)`;
+        if(S.gaze>=1.5){$("gazeWrap").classList.add("hidden");collectFare();}
+      }else{S.gaze=Math.max(0,S.gaze-dt*1.6);
+        $("gazeFill").style.clipPath=`inset(${100-(S.gaze/1.5)*100}% 0 0 0)`;
+        if(S.gaze<=0)$("gazeWrap").classList.add("hidden");}
+    } else $("gazeWrap").classList.add("hidden");
+
+    drawMap();
+  }
+  /* traffic */
+  traffic.forEach(c=>{const u=c.userData;u.pos+=u.dir*u.speed*dt;if(u.pos>112)u.pos=-112;if(u.pos<-112)u.pos=112;
+    if(u.horiz)c.position.set(u.pos,0,u.road+ (u.dir>0?-2:2)); else c.position.set(u.road+(u.dir>0?2:-2),0,u.pos);
+    c.rotation.y=u.horiz?(u.dir>0?Math.PI/2:-Math.PI/2):(u.dir>0?0:Math.PI);});
+  renderer.render(scene,camera);
+}
+animate();
+})();
+</script>
+</body>
+</html>
