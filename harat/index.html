@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div class="game">
@@ -30,6 +30,7 @@
         <button type="button" data-tab="town" role="tab">الحارة</button>
         <button type="button" data-tab="build" role="tab">البناء</button>
         <button type="button" data-tab="street" role="tab">الشارع</button>
+        <button type="button" data-tab="mayor" role="tab" class="mayor-tab">🏛️ العمدة</button>
       </div>
 
       <div class="filters" id="filters">
@@ -74,6 +75,12 @@
     <div class="tab-body" id="streetBody" hidden>
       <div class="town-scroll" id="streetScroll">
         <div id="streetList"></div>
+      </div>
+    </div>
+
+    <div class="tab-body" id="mayorBody" hidden>
+      <div class="town-scroll" id="mayorScroll">
+        <div id="mayorList"></div>
       </div>
     </div>
 
@@ -130,6 +137,7 @@
         <button type="button" class="btn ghost-on night" id="nightBtn" title="طوّل الليل لحد الصبح (لازم كل الحارة تكون نايمة)">🌙 نم لحد الصبح</button>
         <button type="button" class="btn primary" id="addBtn" title="اسكن ساكن جديد">＋ <span class="lbl">اسكن واحد</span></button>
         <button type="button" class="btn icon" id="saveBtn" title="حفظ الحارة">💾</button>
+        <button type="button" class="btn ghost-on" id="helpBtn" title="الشرح التفاعلي">؟ <span class="lbl">الشرح</span></button>
         <button type="button" class="btn icon" id="resetBtn" title="حارة جديدة">↺</button>
       </div>
     </header>
@@ -139,6 +147,33 @@
 
       <div class="hint" id="hint">دوس على أي ساكن عشان تتفرج على حاله وخواطره 💭</div>
       <div class="toast" id="toast"></div>
+
+      <div class="tut-card" id="tutCard" hidden aria-live="polite">
+        <div class="tut-top">
+          <span class="tut-step" id="tutStep">١ / ١٣</span>
+          <b id="tutTitle">—</b>
+          <button type="button" class="tut-close" id="tutClose" title="اقفل الشرح (يفتح تاني من زر ؟)" aria-label="قفل">✕</button>
+        </div>
+        <div class="tut-body" id="tutBody">—</div>
+        <div class="tut-goal"><span>مهمتك:</span> <b id="tutGoal">—</b></div>
+        <div class="tut-bar"><i id="tutBar" style="width:0%"></i></div>
+        <div class="tut-actions">
+          <button type="button" class="tut-primary" id="tutNext">تمام، اللي بعده ←</button>
+          <button type="button" id="tutPause">إيقاف مؤقت</button>
+          <button type="button" id="tutSkip">تخطي الشرح</button>
+        </div>
+      </div>
+
+      <div class="confirm-wrap" id="confirmWrap" hidden>
+        <div class="confirm-box" role="dialog" aria-modal="true">
+          <b class="confirm-title" id="confirmTitle">تأكيد</b>
+          <p class="confirm-text" id="confirmText">—</p>
+          <div class="confirm-actions">
+            <button type="button" class="confirm-ok" id="confirmOk">أيوه، نفّذ</button>
+            <button type="button" class="confirm-no" id="confirmNo">إلغاء</button>
+          </div>
+        </div>
+      </div>
 
       <div class="inside-bar" id="insideBar" hidden>
         <div class="ib-title"><span id="insideIcon">🏪</span><b id="insideName">—</b><small id="insideSub"></small></div>
@@ -207,6 +242,8 @@
             <li><b>⚽ عيال وكورة</b>ماتشات في الملعب وفي نص الشارع</li>
             <li><b>🚓 شرطة وحرامية</b>سرقات بالليل، بلاغات، وقضايا بتتحل</li>
             <li><b>🚗 معرض وتاكسي</b>عربيات للبيع، ومشاوير بعربية في الحارة</li>
+            <li><b>🏛️ عمدة وخزنة</b>ضرايب، منح، إسكان، غرامات، وخدمات للحارة</li>
+            <li><b>🧭 شرح تفاعلي</b>خطوات بتتعلمها وانت بتلعب، وتتخطى أو تعيدها</li>
           </ul>
           <button class="start-btn" id="startBtn" type="button">استدعِ الحارة <span class="arrow">✦</span></button>
           <button class="resume-btn" id="resumeBtn" type="button" hidden>استكمل الحارة المحفوظة ⤾</button>
@@ -216,6 +253,6 @@
     </main>
   </div>
 
-  <script type="module" src="app.js?v=6"></script>
+  <script type="module" src="app.js?v=7"></script>
 </body>
 </html>

@@ -422,8 +422,10 @@ button { font-family: inherit; }
 }
 
 .tabs { display: flex; gap: 5px; padding: 0 14px 10px; }
+.tabs { flex-wrap: wrap; }
 .tabs button {
-  flex: 1; padding: 8px 6px; border-radius: 10px;
+  flex: 1 1 auto; min-width: 0; padding: 8px 5px; border-radius: 10px; white-space: nowrap;
+  font-size: 12px;
   border: 1px solid transparent; background: transparent;
   color: var(--muted); font-size: 12.5px; font-weight: 700; cursor: pointer;
   transition: color 0.15s, background 0.15s;
@@ -765,3 +767,179 @@ button { font-family: inherit; }
 .pl-buy:disabled { opacity: .4; cursor: not-allowed; }
 .pl-buy:not(:disabled):hover { background: rgba(229, 174, 77, .3); }
 .pl-buy.alt:not(:disabled):hover { background: rgba(120, 196, 176, .28); }
+
+/* ============================================================
+   تاب «العمدة»: الخزنة، الضرايب، الخدمات، المخالفات
+   ============================================================ */
+.tabs .mayor-tab { color: #f0cd8a; }
+.tabs .mayor-tab.on { color: #2a1d0c; }
+
+.mayor-head {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 2px 0 12px;
+}
+.mayor-head > div {
+  background: linear-gradient(160deg, rgba(229, 174, 77, .16), rgba(229, 174, 77, .05));
+  border: 1px solid rgba(229, 174, 77, .28);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mayor-head span { font-size: 10.5px; color: #c1b295; letter-spacing: .2px; }
+.mayor-head b { font-size: 13.5px; color: #f6e6c4; }
+.mayor-head b.bad { color: #efab93; }
+.mayor-head b.ok { color: #a4d3ab; }
+.mh-role { grid-column: span 2; flex-direction: row; align-items: center; justify-content: space-between; }
+
+.tax-tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 8px 0 2px;
+}
+.tax-tools button {
+  background: rgba(255, 250, 238, .08);
+  border: 1px solid rgba(229, 174, 77, .26);
+  color: #f0e3c6;
+  border-radius: 8px;
+  min-width: 26px; height: 26px;
+  font-size: 13px; cursor: pointer;
+}
+.tax-tools button:hover { background: rgba(229, 174, 77, .2); }
+.tax-tools span { font-size: 11.5px; color: #c8b99c; }
+.tax-tools .pl-enter { flex: 1 1 100%; height: 30px; min-width: 0; }
+
+.st-card .pl-enter { width: 100%; margin-top: 8px; }
+
+.svc, .cov-btn, .rent-btn {
+  background: rgba(255, 250, 238, .07);
+  border: 1px solid rgba(229, 174, 77, .24);
+  color: #cfc0a4;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.svc.on { background: rgba(98, 168, 107, .22); border-color: rgba(120, 200, 130, .5); color: #b3e0ba; }
+.svc:not(.on) { background: rgba(196, 98, 63, .18); border-color: rgba(196, 98, 63, .5); color: #efb09a; }
+.cov { display: flex; gap: 4px; }
+.cov-btn.on { background: rgba(229, 174, 77, .3); color: #2a1d0c; border-color: #e5ae4d; font-weight: 700; }
+.mayor-home, .mayor-hist { align-items: center; }
+.rent-btn { margin-inline-start: auto; }
+.rent-btn.off { background: rgba(196, 98, 63, .2); border-color: rgba(196, 98, 63, .45); color: #efb09a; }
+
+.mayor-table { display: flex; flex-direction: column; gap: 6px; }
+.mayor-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "id acts" "nums nums" "vio vio";
+  gap: 4px 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: rgba(255, 250, 238, .045);
+  border: 1px solid rgba(229, 174, 77, .12);
+}
+.mayor-row.bad { border-color: rgba(196, 98, 63, .4); background: rgba(196, 98, 63, .08); }
+.mr-id { grid-area: id; display: flex; flex-direction: column; min-width: 0; }
+.mr-id b { font-size: 12.5px; color: #f4e6c6; }
+.mr-id span { font-size: 10.5px; color: #a5977e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-nums { grid-area: nums; display: flex; gap: 12px; align-items: flex-end; }
+.mr-num { display: flex; flex-direction: column; align-items: flex-start; }
+.mr-num span { font-size: 9.5px; color: #9d907a; }
+.mr-num b { font-size: 11.5px; color: #e9dcc0; }
+.mr-num b.bad { color: #efa992; }
+.mr-vio { grid-area: vio; display: flex; flex-wrap: wrap; gap: 4px; }
+.mr-act { grid-area: acts; display: flex; gap: 3px; }
+.mr-act button {
+  width: 24px; height: 24px; padding: 0;
+  border-radius: 7px;
+  border: 1px solid rgba(229, 174, 77, .25);
+  background: rgba(255, 250, 238, .07);
+  font-size: 12px; cursor: pointer;
+}
+.mr-act button:hover { background: rgba(229, 174, 77, .22); }
+.mr-act button.danger { border-color: rgba(196, 98, 63, .55); background: rgba(196, 98, 63, .2); }
+.vio {
+  font-style: normal;
+  font-size: 9.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(196, 98, 63, .2);
+  color: #efb09a;
+}
+.vio.soft { background: rgba(229, 174, 77, .16); color: #e3c58c; }
+.vio.ok { background: rgba(98, 168, 107, .16); color: #a9d3b0; }
+
+/* ---------------- الشرح التفاعلي ---------------- */
+.tut-card {
+  position: absolute;
+  left: 14px; bottom: 14px;
+  width: min(340px, calc(100% - 28px));
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(40, 31, 21, .97), rgba(24, 19, 13, .97));
+  border: 1px solid rgba(229, 174, 77, .4);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .45);
+  z-index: 13;
+  transition: box-shadow .3s, border-color .3s;
+}
+.tut-card[hidden] { display: none; }
+.tut-card.flash { border-color: #8dd09a; box-shadow: 0 0 0 1px rgba(141, 208, 154, .5), 0 18px 40px rgba(0, 0, 0, .45); }
+.tut-top { display: flex; align-items: center; gap: 8px; }
+.tut-step {
+  font-size: 10px; color: #2a1d0c; background: var(--gold);
+  border-radius: 999px; padding: 1px 8px; font-weight: 700;
+}
+.tut-top b { font-size: 13px; color: #f7e9c9; flex: 1; }
+.tut-close {
+  background: none; border: 0; color: #a8967a; font-size: 13px; cursor: pointer; padding: 2px 4px;
+}
+.tut-body { margin: 7px 0 6px; font-size: 11.5px; line-height: 1.95; color: #cfc1a5; }
+.tut-goal { font-size: 11px; color: #d8c6a3; }
+.tut-goal span { color: #9d907a; }
+.tut-goal b { color: #f2d79b; }
+.tut-bar { height: 4px; border-radius: 99px; background: rgba(255, 250, 238, .1); margin: 8px 0; overflow: hidden; }
+.tut-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8dd09a, #e5ae4d); transition: width .35s; }
+.tut-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.tut-actions button {
+  border-radius: 8px; padding: 4px 9px; font-size: 11px; cursor: pointer;
+  background: rgba(255, 250, 238, .08);
+  border: 1px solid rgba(229, 174, 77, .25);
+  color: #e3d3b4;
+}
+.tut-actions .tut-primary { background: linear-gradient(160deg, #f4d089, #d99f3c); color: #2a1d0c; font-weight: 700; border: 0; }
+.tut-actions button:hover { filter: brightness(1.08); }
+
+/* ---------------- تأكيد الأوامر الخطرة ---------------- */
+.confirm-wrap {
+  position: absolute; inset: 0;
+  background: rgba(12, 9, 6, .55);
+  backdrop-filter: blur(2px);
+  display: grid; place-items: center;
+  z-index: 20;
+}
+.confirm-wrap[hidden] { display: none; }
+.confirm-box {
+  width: min(360px, calc(100% - 40px));
+  background: linear-gradient(165deg, #2c2318, #1b1510);
+  border: 1px solid rgba(229, 174, 77, .45);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+}
+.confirm-title { display: block; font-size: 14px; color: #f6e3ba; margin-bottom: 8px; }
+.confirm-text { margin: 0 0 14px; font-size: 12px; line-height: 1.95; color: #cfc0a3; }
+.confirm-actions { display: flex; gap: 8px; }
+.confirm-actions button {
+  flex: 1; padding: 8px; border-radius: 10px; font-size: 12px; cursor: pointer;
+  border: 1px solid rgba(229, 174, 77, .3); background: rgba(255, 250, 238, .07); color: #e6d6b7;
+}
+.confirm-actions .confirm-ok { background: linear-gradient(160deg, #f4d089, #d99f3c); color: #2a1d0c; font-weight: 700; border: 0; }
+
+@media (max-width: 900px) {
+  .tut-card { left: 8px; right: 8px; bottom: 8px; width: auto; }
+  .mayor-row { grid-template-areas: "id acts" "nums nums" "vio vio"; }
+}

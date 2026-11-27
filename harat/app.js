@@ -521,7 +521,9 @@ function drawDoor(p) {
   const dx = x + w / 2;
   const dw = p.style === 'garage' ? 44 : 17;
   const dh = p.style === 'garage' ? 34 : 24;
-  const isMetal = ['workshop', 'garage', 'office', 'pharmacy'].includes(p.style);
+  const look = p.look;
+  const style = look ? look.doorStyle : null;
+  const isMetal = ['workshop', 'garage', 'office', 'pharmacy'].includes(p.style) || ['metal', 'grill'].includes(style);
   ctx.fillStyle = 'rgba(52,38,22,.22)';
   rr(dx - dw / 2 - 3, y + h - 1, dw + 6, 4, 2); ctx.fill();
 
@@ -538,12 +540,30 @@ function drawDoor(p) {
   }
 
   const g = ctx.createLinearGradient(0, y + h - dh, 0, y + h);
-  if (isMetal) { g.addColorStop(0, '#7d94a3'); g.addColorStop(1, '#546b7a'); }
+  if (look && look.doorColor) {
+    g.addColorStop(0, shade(look.doorColor, 0.18));
+    g.addColorStop(1, shade(look.doorColor, -0.2));
+  } else if (isMetal) { g.addColorStop(0, '#7d94a3'); g.addColorStop(1, '#546b7a'); }
   else { g.addColorStop(0, '#95623a'); g.addColorStop(1, '#6e4526'); }
   ctx.fillStyle = g;
   const leafW = Math.max(2, dw * (1 - openK * 0.88));
   rr(dx - dw / 2 + (openK > 0.5 ? dw * 0.55 : 0), y + h - dh, leafW, dh, 4); ctx.fill();
-  if (isMetal) {
+  if (style === 'grill') {
+    /* باب حديد مشغول: قضبان طولية + عارضة */
+    ctx.strokeStyle = 'rgba(30,34,38,.55)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const px = dx - dw / 2 + 3 + i * ((dw - 6) / 3);
+      ctx.beginPath();
+      ctx.moveTo(px, y + h - dh + 2);
+      ctx.lineTo(px, y + h - 2);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(dx - dw / 2 + 1, y + h - dh / 2);
+    ctx.lineTo(dx + dw / 2 - 1, y + h - dh / 2);
+    ctx.stroke();
+  } else if (isMetal) {
     ctx.strokeStyle = 'rgba(35,48,58,.4)';
     ctx.lineWidth = 1;
     for (let i = 1; i < 4; i++) {
@@ -561,12 +581,52 @@ function drawDoor(p) {
 function drawAwning(cx, y, w, c1 = '#bf5540', c2 = '#f2e3c4') {
   const n = Math.max(6, Math.round(w / 9));
   const sw = w / n;
+  const hgt = 8;
+  ctx.save();
+  /* السقف المايل: شريحة أفتح فوق وشريحة أغمق تحت */
   for (let i = 0; i < n; i++) {
     ctx.fillStyle = i % 2 ? c2 : c1;
-    ctx.fillRect(cx - w / 2 + i * sw, y, sw, 8);
+    ctx.fillRect(cx - w / 2 + i * sw, y, sw + 0.4, hgt);
+  }
+  /* حرف مائل يبان كأنه قماش */
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cx - w / 2, y, w, 2);
+  ctx.globalAlpha = 1;
+  /* حواف مدببة (شراشيب) */
+  ctx.fillStyle = 'rgba(50,34,20,.18)';
+  for (let i = 0; i < n; i++) {
+    const x0 = cx - w / 2 + i * sw;
+    ctx.beginPath();
+    ctx.moveTo(x0, y + hgt);
+    ctx.lineTo(x0 + sw, y + hgt);
+    ctx.lineTo(x0 + sw / 2, y + hgt + 2.6);
+    ctx.closePath();
+    ctx.fill();
   }
   ctx.fillStyle = 'rgba(50,34,20,.25)';
-  ctx.fillRect(cx - w / 2, y + 8, w, 1.6);
+  ctx.fillRect(cx - w / 2, y + hgt + 2.2, w, 1.4);
+  /* قوايم بتشيل المظلة — عشان مايبقاش قماش طاير */
+  ctx.strokeStyle = 'rgba(58,42,26,.75)';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  const legH = Math.max(7, Math.round(hgt * 1.15));
+  ctx.beginPath();
+  ctx.moveTo(cx - w / 2 + 2, y + hgt + 1);
+  ctx.lineTo(cx - w / 2 + 1, y + hgt + legH);
+  ctx.moveTo(cx + w / 2 - 2, y + hgt + 1);
+  ctx.lineTo(cx + w / 2 - 1, y + hgt + legH);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(58,42,26,.45)';
+  ctx.beginPath();
+  ctx.moveTo(cx - w / 2 + 1, y + hgt + 1);
+  ctx.lineTo(cx - w / 2 + 5, y + hgt + 1);
+  ctx.moveTo(cx + w / 2 - 1, y + hgt + 1);
+  ctx.lineTo(cx + w / 2 - 5, y + hgt + 1);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.restore();
 }
 
 function drawPlaceExtras(p, now, night) {
@@ -1031,6 +1091,7 @@ function drawStateChips(now) {
 const INSIDE = { w: 980, h: 470 };
 
 function enterPlace(id) {
+  sim.tutorialFlag('enteredPlace');
   const p = sim.getPlace(id);
   if (!p || p.kind === 'land') { sim.toast('الأرض دي لسه فاضية… ابدأ بناء الأول'); return; }
   outsideCam = { x: cam.x, y: cam.y, zoom: cam.zoom };
@@ -1368,6 +1429,401 @@ function drawInterior(now) {
   }
 }
 
+/* ------------------------------------------------------------
+   البيوت: كل بيت ليه سقف ولون ومدخل وتفاصيل من لوكه المحفوظ
+   ------------------------------------------------------------ */
+function dpr2(v) { return Math.round(v * 10) / 10; }
+
+function drawHouseRoof(p, look) {
+  const { x, y, w } = p;
+  const trim = look.trim || '#8a6a45';
+  const wall = look.wall || p.color;
+
+  /* لوح السطح: جزء أسمنتي بيفصل الحيطة عن السقف */
+  const slabH = 9;
+  ctx.fillStyle = shade(wall, -0.3);
+  rr(x - 1, y - slabH, w + 2, slabH + 4, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.22)';
+  ctx.fillRect(x + 4, y - slabH + 0.6, w - 8, 1.2);
+
+  if (look.roof === 'pitched') {
+    const rh = Math.min(20, Math.max(13, w * 0.14));
+    const baseY = y - slabH + 1;
+    const over = 4;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x - over, baseY);
+    ctx.lineTo(x + w / 2, baseY - rh);
+    ctx.lineTo(x + w + over, baseY);
+    ctx.closePath();
+    ctx.fillStyle = shade(trim, -0.06);
+    ctx.fill();
+    ctx.clip();
+    /* شرائح القرميد جوه السقف بس */
+    ctx.strokeStyle = 'rgba(70,45,25,.28)';
+    ctx.lineWidth = 0.9;
+    for (let i = 1; i <= 4; i++) {
+      const k = i / 5;
+      const yy = baseY - rh * k;
+      const half = (w / 2 + over) * k;
+      ctx.beginPath();
+      ctx.moveTo(x + w / 2 - half + 1, yy);
+      ctx.lineTo(x + w / 2 + half - 1, yy);
+      ctx.stroke();
+    }
+    ctx.restore();
+    /* حرف السقف: خيط سميك بدل الشعرة */
+    ctx.strokeStyle = shade(trim, -0.3);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - over, baseY);
+    ctx.lineTo(x + w / 2, baseY - rh);
+    ctx.lineTo(x + w + over, baseY);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,242,214,.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - over + 1.5, baseY - 1.6);
+    ctx.lineTo(x + w / 2, baseY - rh - 0.6);
+    ctx.lineTo(x + w + over - 1.5, baseY - 1.6);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    return;
+  }
+
+  /* درابزين قصير على السطح */
+  const railTop = y - slabH - 6;
+  if (look.roof !== 'dome') {
+    ctx.fillStyle = shade(trim, 0.05);
+    for (let i = 0; i < 7; i++) {
+      const px = x + 6 + i * ((w - 12) / 6);
+      rr(px, railTop, 2, 7, 1); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(90,70,45,.6)';
+    ctx.fillRect(x + 4, railTop - 1, w - 8, 1.6);
+  }
+
+  if (look.roof === 'dome') {
+    const cx = x + w / 2;
+    const ry = Math.min(14, w * 0.11);
+    const baseY = y - slabH + 1;
+    ctx.fillStyle = '#cfc9b6';
+    rr(cx - ry * 1.5, baseY - 4, ry * 3, 5, 2); ctx.fill();
+    ctx.fillStyle = '#e6e1cf';
+    ctx.beginPath();
+    ctx.ellipse(cx, baseY - 4, ry * 1.28, ry, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(140,130,108,.55)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.strokeStyle = '#9a927c';
+    ctx.beginPath(); ctx.moveTo(cx, baseY - 4 - ry); ctx.lineTo(cx, baseY - 9 - ry); ctx.stroke();
+    ctx.fillStyle = '#e5ae4d';
+    ctx.beginPath(); ctx.arc(cx, baseY - 11 - ry, 1.9, 0, Math.PI * 2); ctx.fill();
+  } else if (look.roof === 'deck') {
+    /* صندوق سلم + زرع على السطح */
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    rr(x + 10, y - slabH - 5, 13, 7, 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,110,90,.6)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(x + 10.5, y - slabH - 4.5, 12, 6);
+    ctx.fillStyle = '#5f8a52';
+    ctx.beginPath(); ctx.arc(x + w - 18, railTop - 1, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4a6f40';
+    ctx.beginPath(); ctx.arc(x + w - 25, railTop + 0.5, 2.4, 0, Math.PI * 2); ctx.fill();
+  } else if (look.roof === 'ladder') {
+    /* سلم معدني على الحيط الجانبي */
+    const lx = x + w - 16;
+    const lBot = y + h - 5;
+    ctx.strokeStyle = 'rgba(40,30,18,.25)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(lx - 1, lBot + 2); ctx.lineTo(lx + 6, lBot + 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#6f5738';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(lx, y - 1); ctx.lineTo(lx + 2, lBot);
+    ctx.moveTo(lx + 6, y - 1); ctx.lineTo(lx + 8, lBot);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 9; i++) {
+      const k = i / 8;
+      const yy = y - 1 + k * (h - 4);
+      ctx.beginPath();
+      ctx.moveTo(lx + 2 * k, yy);
+      ctx.lineTo(lx + 6 + 2 * k, yy);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawHouseWindows(p, look, lit, skipRect = null) {
+  const { x, y, w, h } = p;
+  const cols = clamp(look.cols || 3, 2, 4);
+  const rows = clamp(look.rows || 2, 2, 3);
+  const top = y + 30;
+  const bottom = y + h - 36;
+  const gx = (w - 24) / cols;
+  const gy = (bottom - top) / rows;
+  const doorCx = x + w / 2;
+  const shutters = look.extras.includes('shutters');
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const ww = 14, wh = 17;
+      const wx = x + 12 + col * gx + (gx - ww) / 2;
+      const wy = top + row * gy + (gy - wh) / 2;
+      if (wy + wh > y + h - 14) continue;
+      /* سيب مكان الباب في الدور الأرضي */
+      if (row === rows - 1 && Math.abs(wx + ww / 2 - doorCx) < 15) continue;
+      if (skipRect && wx + ww > skipRect.x && wx < skipRect.x + skipRect.w &&
+          wy + wh > skipRect.y - 4 && wy < skipRect.y + skipRect.h + 4) continue;
+      if (shutters) {
+        ctx.fillStyle = shade(look.trim, 0.1);
+        rr(wx - 4, wy - 0.5, 3.4, wh + 1, 1); ctx.fill();
+        rr(wx + ww + 0.6, wy - 0.5, 3.4, wh + 1, 1); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(48,34,21,.5)';
+      rr(wx - 1.5, wy - 1.5, ww + 3, wh + 3, 2.5); ctx.fill();
+      const on = lit && ((p.seed + row * 5 + col * 11) % 7 !== 0);
+      ctx.fillStyle = on ? '#f6cb7d' : 'rgba(90,110,116,.92)';
+      rr(wx, wy, ww, wh, 2); ctx.fill();
+      if (on) {
+        ctx.fillStyle = 'rgba(255,214,140,.2)';
+        rr(wx - 3, wy - 3, ww + 6, wh + 6, 4); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(50,36,22,.32)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh);
+      ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawHouseDetails(p, look, night) {
+  const { x, y, w, h } = p;
+  const ex = look.extras;
+  const doorCx = x + w / 2;
+  const railTop = y - 15;
+
+  /* حزام/قاعدة أسمنتية تحت الشبابيك */
+  if (ex.includes('band') && !ex.includes('bricks')) {
+    ctx.fillStyle = shade(look.trim, -0.06);
+    rr(x + 2, y + h - 15, w - 4, 4, 1.5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.16)';
+    ctx.fillRect(x + 3, y + h - 15, w - 6, 1);
+  }
+
+  /* طوب في القاعدة */
+  if (ex.includes('bricks')) {
+    ctx.fillStyle = 'rgba(150,96,58,.5)';
+    for (let row = 0; row < 3; row++) {
+      for (let i = 0; i < Math.floor((w - 8) / 15); i++) {
+        const bx = x + 5 + i * 15 + (row % 2 ? 7 : 0);
+        rr(bx, y + h - 19 + row * 5, 12, 3.4, 1); ctx.fill();
+      }
+    }
+  }
+
+  /* مكيفات على الحيطة الشمال تحت (مكان فاضي من الشبابيك) */
+  if (ex.includes('ac')) {
+    const ax = x + 7;
+    const ay = y + h - 32;
+    const unit = (uy) => {
+      ctx.fillStyle = 'rgba(40,30,20,.22)';
+      rr(ax + 1, uy + 2, 13, 8, 2); ctx.fill();
+      ctx.fillStyle = '#cfd6d1';
+      rr(ax, uy, 13, 8, 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.fillRect(ax + 1.5, uy + 0.8, 10, 1.2);
+      ctx.strokeStyle = 'rgba(96,108,106,.75)';
+      ctx.lineWidth = 0.7;
+      for (let i = 1; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(ax + 1.6, uy + i * 2.3);
+        ctx.lineTo(ax + 11.4, uy + i * 2.3);
+        ctx.stroke();
+      }
+      /* ماسورة الصرف */
+      ctx.strokeStyle = 'rgba(120,110,92,.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ax + 12.4, uy + 6.6);
+      ctx.lineTo(ax + 15, uy + 6.6);
+      ctx.lineTo(ax + 15, uy + 10);
+      ctx.stroke();
+    };
+    unit(ay);
+    unit(ay + 11.5);
+  }
+
+  /* طبق دش */
+  if (ex.includes('dish')) {
+    /* الدش على السطح — مش على اللوحة */
+    const dxp = x + w - 26, dyp = y - 8;
+    ctx.strokeStyle = '#6c6558';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(dxp + 4, dyp + 4); ctx.lineTo(dxp - 2, dyp - 8); ctx.stroke();
+    ctx.fillStyle = '#e3ded1';
+    ctx.beginPath(); ctx.ellipse(dxp - 3, dyp - 10, 8, 4.8, -0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#a9a294';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#8d8677';
+    ctx.beginPath(); ctx.arc(dxp - 5, dyp - 11, 1.4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /* تنكات مياه على السطح */
+  if (ex.includes('tanks') && look.roof !== 'pitched') {
+    const tank = (tx, color) => {
+      ctx.fillStyle = color;
+      rr(tx, y - 22, 11, 11, 2.5); ctx.fill();
+      ctx.strokeStyle = 'rgba(90,90,80,.5)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(tx, y - 17); ctx.lineTo(tx + 11, y - 17); ctx.stroke();
+    };
+    tank(x + 16, '#b8b3a5');
+    tank(x + 32, '#9fb6c0');
+  }
+
+  /* سلم خارجي */
+  if (ex.includes('stairs') && look.roof !== 'ladder') {
+    /* سلم خارجي بميل بسيط على الحيطة */
+    const sx = x + 6, sTop = y + h * 0.42, sBot = y + h - 4;
+    ctx.strokeStyle = 'rgba(96,70,42,.8)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(sx, sBot); ctx.lineTo(sx + 13, sTop);
+    ctx.moveTo(sx + 7, sBot); ctx.lineTo(sx + 20, sTop);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 7; i++) {
+      const k = i / 7;
+      const yy = sBot - k * (sBot - sTop);
+      const off = k * 13;
+      ctx.beginPath();
+      ctx.moveTo(sx + off, yy);
+      ctx.lineTo(sx + 7 + off, yy);
+      ctx.stroke();
+    }
+  }
+
+}
+
+function houseBalconyRect(p, look) {
+  if (!look.extras.includes('balcony')) return null;
+  const bw = Math.min(40, p.w * 0.32);
+  return { x: p.x + p.w / 2 + 16, y: p.y + p.h - 44, w: bw, h: 16 };
+}
+
+function drawHouseFront(p, look) {
+  const { x, y, w, h } = p;
+  const ex = look.extras;
+  const doorCx = x + w / 2;
+  const railTop = y - 15;
+  /* بلكونة جنب الباب */
+  if (ex.includes('balcony')) {
+    const bw = Math.min(44, w * 0.34);
+    const bx = doorCx + 15;
+    const by = y + h - 46;
+    /* ظل البلكونة على الحيطة */
+    ctx.fillStyle = 'rgba(60,42,24,.16)';
+    rr(bx - 3, by - 2, bw + 6, 22, 3); ctx.fill();
+    /* القاعدة */
+    ctx.fillStyle = shade(look.wall, -0.34);
+    rr(bx - 2, by + 15, bw + 4, 4.5, 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.fillRect(bx - 1, by + 15, bw + 2, 1);
+    /* حديد البلكونة */
+    ctx.strokeStyle = 'rgba(66,48,30,.6)';
+    ctx.lineWidth = 1;
+    const posts = 7;
+    for (let i = 0; i <= posts; i++) {
+      const px = bx + (bw / posts) * i;
+      ctx.beginPath(); ctx.moveTo(px, by + 1); ctx.lineTo(px, by + 15); ctx.stroke();
+    }
+    ctx.strokeStyle = shade(look.trim || '#8a6a45', -0.15);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(bx - 1, by + 0.5); ctx.lineTo(bx + bw + 1, by + 0.5); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(bx - 1, by - 0.4); ctx.lineTo(bx + bw + 1, by - 0.4); ctx.stroke();
+    ctx.fillStyle = '#6f4a2a';
+    rr(bx + bw - 10, by + 4, 7, 6, 1.5); ctx.fill();
+    ctx.fillStyle = '#5f8a52';
+    ctx.beginPath(); ctx.arc(bx + bw - 6.5, by + 2.5, 3.4, 0, Math.PI * 2); ctx.fill();
+    if (ex.includes('laundry')) {
+      ctx.strokeStyle = 'rgba(60,48,34,.4)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(bx + 1, by + 2); ctx.lineTo(bx + bw - 1, by + 3); ctx.stroke();
+      const cloths = ['#e8dcc8', '#c9a0a8', '#8fb0c9', '#d8c9a0'];
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = cloths[(i + look.seed) % cloths.length];
+        rr(bx + 3 + i * (bw / 3.4), by + 2.5 + i * 0.4, 5, 7, 1); ctx.fill();
+      }
+    }
+  } else if (ex.includes('laundry')) {
+    /* غسيل على السطح */
+    ctx.strokeStyle = 'rgba(60,48,34,.45)';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(x + 12, railTop - 2);
+    ctx.lineTo(x + w - 12, railTop - 2);
+    ctx.stroke();
+    const cloths = ['#e8dcc8', '#c9a0a8', '#8fb0c9', '#d8c9a0'];
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = cloths[(i + look.seed) % cloths.length];
+      rr(x + 16 + i * ((w - 34) / 4), railTop - 2.5, 6, 8, 1); ctx.fill();
+    }
+  }
+
+  /* مظلة فوق الباب */
+  if (ex.includes('awning')) {
+    drawAwning(doorCx, y + h - 31, 44, shade(look.doorColor || '#7a4a2c', 0.06), '#f2e3c4');
+  }
+}
+
+function drawHouse(p, now, night) {
+  const { x, y, w, h } = p;
+  const look = p.look;
+  const lit = night > 0.18 && !sim.powerCut;
+
+  /* ظل */
+  ctx.fillStyle = 'rgba(84,60,32,.20)';
+  rr(x + 7, y + 9, w, h, 8); ctx.fill();
+
+  /* السقف ورا الحيطة */
+  drawHouseRoof(p, look);
+
+  /* الحيطة */
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, shade(look.wall, 0.15));
+  g.addColorStop(0.55, look.wall);
+  g.addColorStop(1, shade(look.wall, -0.17));
+  ctx.fillStyle = g;
+  rr(x, y, w, h, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(70,50,28,.42)';
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+
+  /* بلاستر / بقع جبس */
+  if (look.plaster) {
+    ctx.fillStyle = 'rgba(255,250,238,.10)';
+    rr(x + 8, y + 16, w * 0.32, h * 0.28, 6); ctx.fill();
+    rr(x + w * 0.55, y + h * 0.3, w * 0.3, h * 0.22, 6); ctx.fill();
+  }
+
+  const balcony = houseBalconyRect(p, look);
+  drawHouseDetails(p, look, night);
+  drawHouseWindows(p, look, lit, balcony);
+  drawDoor(p);
+  drawHouseFront(p, look);
+  drawSign(p);
+}
+
 function drawPlace(p, now, night) {
   const { x, y, w, h } = p;
   let k = 1;
@@ -1391,6 +1847,12 @@ function drawPlace(p, now, night) {
   }
   if (p.style === 'lot') {
     drawLot(p, now, night);
+    ctx.restore();
+    return;
+  }
+  /* البيوت السكنية: شكل كل بيت من لوكه المحفوظ */
+  if (p.kind === 'home' && p.look) {
+    drawHouse(p, now, night);
     ctx.restore();
     return;
   }
@@ -1911,7 +2373,15 @@ function measureBubble(text) {
     } else line = test;
   }
   if (line) lines.push(line);
-  if (lines.length > 3) { lines.length = 3; lines[2] = lines[2] + '…'; }
+  if (lines.length > 3) {
+    lines.length = 3;
+    lines[2] = lines[2] + '…';
+    /* ما نخليش الحرف الأخير يخرج بره الفقاعة */
+    while (lines[2].length > 3 && ctx.measureText(lines[2]).width > maxW) {
+      lines[2] = lines[2].split(' ').slice(0, -1).join(' ') + '…';
+      if (!lines[2].trim() || lines[2] === '…') { lines[2] = '…'; break; }
+    }
+  }
   let w = 0;
   for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
   const bw = Math.min(maxW + 16, w + 16);
@@ -2529,6 +2999,7 @@ function renderPeople(force) {
 function openProfile(id) {
   profileId = id;
   select(id);
+  sim.tutorialFlag('profileOpened');
   const r = sim.getResident(id);
   if (!r) return;
   const p = $('peopleBody');
@@ -2829,14 +3300,172 @@ function skipToMorning() {
   return false;
 }
 
+/* ------------------------------------------------------------
+   العمدة: تبويب الإدارة + التأكيد قبل الأوامر الخطرة
+   ------------------------------------------------------------ */
+let pendingCmd = null;
+
+const TAX_STEP = 0.01;
+
+function mayorRowsHTML(rep) {
+  return rep.residents.map(r => {
+    const chips = r.violations.length
+      ? r.violations.map(v => `<i class="vio ${v.code === 'record' ? 'soft' : 'hard'}" title="${esc(v.detail || '')}">${esc(v.label)}</i>`).join('')
+      : '<i class="vio ok">سليم</i>';
+    return `<div class="mayor-row${r.homeless ? ' bad' : ''}">
+      <div class="mr-id">
+        <b>${esc(r.name)}</b>
+        <span>${esc(r.home)} • ${esc(r.job)}</span>
+      </div>
+      <div class="mr-nums">
+        <div class="mr-num"><span>دخل</span><b>${money(r.income)}</b></div>
+        <div class="mr-num"><span>ضريبة</span><b>${money(r.taxDue)}</b></div>
+        <div class="mr-num"><span>معاه</span><b class="${r.money < 50 ? 'bad' : ''}">${money(r.money)}</b></div>
+      </div>
+      <div class="mr-vio">${chips}</div>
+      <div class="mr-act">
+        <button type="button" data-mayor="fine" data-rid="${r.id}" title="غرامة">🧾</button>
+        <button type="button" data-mayor="grant" data-rid="${r.id}" title="منحة">🎁</button>
+        <button type="button" data-mayor="reassign" data-rid="${r.id}" title="نقل لبيت تاني">🏠</button>
+        <button type="button" data-mayor="evict" data-rid="${r.id}" title="طرد">🚪</button>
+        ${r.violations.some(v => v.code === 'trespass') ? `<button type="button" data-mayor="trespass" data-rid="${r.id}" class="danger" title="إخراج متطفّل">⛔</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMayor() {
+  const box = $('mayorList');
+  if (!box) return;
+  const rep = sim.mayorReport();
+  const pct = v => ar(Math.round(v * 100)) + '٪';
+  const out = [];
+
+  out.push(`<div class="mayor-head">
+    <div class="mh-role"><span>${esc(rep.role)}</span><b>${esc(rep.leader)}</b></div>
+    <div class="mh-treasury"><span>خزنة الحارة</span><b>${money(rep.treasury)}</b></div>
+    <div class="mh-treasury"><span>ضرايب متأخرة</span><b class="${rep.arrears ? 'bad' : 'ok'}">${money(rep.arrears)}</b></div>
+    <div class="mh-treasury"><span>اتحصّل / اتمنح</span><b>${money(rep.collectedTotal)} • ${money(rep.grantedTotal)}</b></div>
+  </div>`);
+
+  out.push('<div class="section-title">الضرايب</div>');
+  out.push(`<div class="st-card">
+    <div class="st-row"><span>ضريبة السكان (اليوم)</span><b>${pct(rep.tax.resident)}</b></div>
+    <div class="st-row"><span>ضريبة الأنشطة (على المبيعات)</span><b>${pct(rep.tax.business)}</b></div>
+    <div class="tax-tools">
+      <button type="button" data-mayor-tax="resident" data-dir="-1">−</button>
+      <span>سكان</span>
+      <button type="button" data-mayor-tax="resident" data-dir="1">＋</button>
+      <button type="button" data-mayor-tax="business" data-dir="-1">−</button>
+      <span>أنشطة</span>
+      <button type="button" data-mayor-tax="business" data-dir="1">＋</button>
+      <button type="button" class="pl-enter" data-mayor="applyTax">تطبيق</button>
+    </div>
+    <div class="st-note">أقصى ضريبة سكان ١٥٪ وأنشطة ٢٠٪. كل زيادة بتحتاج تأكيد، واللي مش معاه فلوس بتتراكم عليه متأخرات.</div>
+    <button class="pl-enter" data-mayor="collect">💰 حصّل الضرايب للخزنة</button>
+  </div>`);
+
+  out.push('<div class="section-title">إدارة</div>');
+  out.push(`<div class="st-card">
+    <div class="st-row"><span>العمدة الآلي (يدير لوحده بنفس القواعد)</span>
+      <button type="button" class="svc ${rep.aiMayor ? 'on' : ''}" data-mayor="auto" data-on="${rep.aiMayor ? '0' : '1'}">${rep.aiMayor ? 'شغّال' : 'متوقف'}</button></div>
+    <div class="st-note">لو شغّلته، هيحصّل الضرايب كل يوم، يساعد الغلابة، ويسكّن اللي بلا مأوى — لكن مش هيقدر يطرد حد من غير بديل، ولا يرفع ضريبة فوق الحد.</div>
+  </div>`);
+
+  out.push('<div class="section-title">خدمات الحارة</div>');
+  out.push(`<div class="st-card">
+    ${Object.entries({ streetlights: 'نور الشوارع', water: 'المايه', police: 'خدمة الشرطة' }).map(([k, label]) => `
+      <div class="st-row"><span>${label}</span><button type="button" class="svc ${rep.services[k] ? 'on' : ''}" data-mayor="service" data-service="${k}" data-on="${rep.services[k] ? '0' : '1'}">${rep.services[k] ? 'شغالة' : 'واقفة'}</button></div>`).join('')}
+    <div class="st-row"><span>تغطية الشرطة</span><span class="cov">
+      ${['low', 'normal', 'high'].map(lv => `<button type="button" class="cov-btn ${rep.policeCoverage === lv ? 'on' : ''}" data-mayor="coverage" data-level="${lv}">${lv === 'low' ? 'خفيفة' : lv === 'normal' ? 'عادية' : 'مكثفة'}</button>`).join('')}
+    </span></div>
+    <div class="st-note">خدمة الشرطة الواقفة = مفيش دوريات ولا قبض. النور الواقف بيزعل الناس بالليل، والمايه كمان.</div>
+  </div>`);
+
+  out.push('<div class="section-title">العمارات والإيجار</div>');
+  for (const h of rep.homes) {
+    out.push(`<div class="st-line mayor-home">
+      <b>${esc(h.name)}</b>
+      <span>${ar(h.households)} عيلة • ${ar(h.tenants)} ساكن • ${ar(h.free)} شقة فاضية</span>
+      <button type="button" class="rent-btn ${h.rentalsOpen ? '' : 'off'}" data-mayor="rentals" data-home="${h.id}" data-open="${h.rentalsOpen ? '0' : '1'}">${h.rentalsOpen ? 'الإيجار مفتوح' : 'الإيجار مقفول'}</button>
+    </div>`);
+  }
+
+  if (rep.homeless.length) {
+    out.push('<div class="section-title">بلا مأوى</div>');
+    for (const h of rep.homeless) {
+      out.push(`<div class="st-line"><b>${esc(h.name)}</b><span>بيدور على شقة</span>
+        <button type="button" class="rent-btn" data-mayor="reassign" data-rid="${h.id}">اسكنه 🏠</button></div>`);
+    }
+  }
+
+  out.push(`<div class="section-title">السكان والمخالفات (${ar(rep.violations)})</div>`);
+  out.push(`<div class="mayor-table">${mayorRowsHTML(rep)}</div>`);
+
+  if (rep.history.length) {
+    out.push('<div class="section-title">قرارات أخيرة</div>');
+    for (const h of rep.history) {
+      out.push(`<div class="st-line mayor-hist"><b>يوم ${ar(h.day)}</b><span>${esc(h.text)}</span></div>`);
+    }
+  }
+
+  box.innerHTML = out.join('');
+}
+
+function mayorCmd(id, args) {
+  const res = sim.command(id, args);
+  if (res.needsConfirm) {
+    pendingCmd = { id, args, token: res.token };
+    $('confirmTitle').textContent = res.danger ? '⚠️ قرار كبير' : 'تأكيد';
+    $('confirmText').textContent = res.preview;
+    $('confirmWrap').hidden = false;
+    return res;
+  }
+  if (!res.ok) { sim.toast(res.reason || 'مش قادر أنفّذ'); return res; }
+  sim.toast('تم ✓');
+  renderMayor();
+  return res;
+}
+
+function closeConfirm() {
+  pendingCmd = null;
+  const w = $('confirmWrap');
+  if (w) w.hidden = true;
+}
+
+/* ------------------------------------------------------------
+   الشرح التفاعلي
+   ------------------------------------------------------------ */
+let tutHidden = false;
+
+function renderTutorial(force = false) {
+  const card = $('tutCard');
+  if (!card) return;
+  const snap = sim.tutorialSnapshot();
+  const show = snap.started && !snap.finished && !snap.paused && !snap.skipped && !tutHidden;
+  if (!show || !snap.step) {
+    if (!card.hidden) card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  card.classList.toggle('flash', !!snap.flash);
+  $('tutStep').textContent = `${ar(snap.index + 1)} / ${ar(snap.progress.total)}`;
+  $('tutTitle').textContent = snap.step.title;
+  $('tutBody').textContent = snap.step.body;
+  $('tutGoal').textContent = snap.step.goal;
+  $('tutBar').style.width = snap.progress.percent + '%';
+  $('tutPause').textContent = snap.paused ? 'كمّل' : 'إيقاف مؤقت';
+}
+
 function setTab(tab) {
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  const map = { log: 'logBody', people: 'peopleBody', town: 'townBody', build: 'buildBody', street: 'streetBody' };
+  const map = { log: 'logBody', people: 'peopleBody', town: 'townBody', build: 'buildBody', street: 'streetBody', mayor: 'mayorBody' };
   Object.entries(map).forEach(([k, id]) => { const el = $(id); if (el) el.hidden = k !== tab; });
   if (tab === 'street') renderStreet();
   if (tab === 'build') renderBuild();
   if (tab === 'town') renderTown();
   if (tab === 'people') renderPeople(true);
+  if (tab === 'mayor') { renderMayor(); sim.tutorialFlag('mayorOpened'); }
 }
 
 function renderStreet() {
@@ -2975,11 +3604,13 @@ function applyLoadedState() {
   renderPeople(true);
   renderTown();
   renderBuild();
+  renderMayor();
+  renderTutorial(true);
   syncHud();
 }
 
 /* مفاتيح الحفظ القديمة — بنقرا منها ونطوّرها لآخر نسخة */
-const LEGACY_SAVE_KEYS = ['harat.save.v3', 'harat.save.v2'];
+const LEGACY_SAVE_KEYS = ['harat.save.v4', 'harat.save.v3', 'harat.save.v2'];
 
 function loadGame() {
   try {
@@ -3042,6 +3673,8 @@ $('startBtn').addEventListener('click', () => {
   $('intro').hidden = true;
   removeAllSaves();
   sim.summonTown();
+  sim.tutorialStart();
+  renderTutorial(true);
   const now = performance.now();
   sim.places.forEach((p, i) => { p.appear = now + i * 42; });
   sim.residents.forEach((r, i) => { r.spawnAt = now + 500 + i * 180; });
@@ -3089,6 +3722,9 @@ $('resetBtn').addEventListener('click', () => {
 function resetGame() {
   removeAllSaves();
   sim.reset();
+  tutHidden = false;
+  closeConfirm();
+  sim.tutorialStart();
   insideId = null;
   sim.insideId = null;
   $('insideBar').hidden = true;
@@ -3207,6 +3843,127 @@ peopleList.addEventListener('click', e => {
   if (!row) return;
   openProfile(Number(row.dataset.id));
 });
+
+/* شيء من إدارة الحارة */
+if ($('mayorList')) {
+  $('mayorList').addEventListener('click', e => {
+    const taxBtn = e.target.closest('[data-mayor-tax]');
+    if (taxBtn) {
+      const key = taxBtn.dataset.mayorTax;
+      const dir = Number(taxBtn.dataset.dir) || 1;
+      const tax = { ...sim.mayor.tax };
+      tax[key] = Math.max(0, Math.round((tax[key] + dir * TAX_STEP) * 100) / 100);
+      mayorCmd('tax.set', { resident: tax.resident, business: tax.business });
+      return;
+    }
+    const btn = e.target.closest('[data-mayor]');
+    if (!btn) return;
+    const act = btn.dataset.mayor;
+    const rid = btn.dataset.rid ? Number(btn.dataset.rid) : null;
+    const ask = (msg, def) => {
+      try { return Number(window.prompt(msg, String(def)) || 0); } catch (err) { return def; }
+    };
+    if (act === 'collect') {
+      const res = mayorCmd('treasury.collect', {});
+      if (res.ok) sim.tutorialFlag('mayorUsed');
+      const rep = sim.mayorReport();
+      if (rep.homeless.length) return;
+      return;
+    }
+    if (act === 'applyTax') { mayorCmd('tax.set', { resident: sim.mayor.tax.resident, business: sim.mayor.tax.business }); return; }
+    if (act === 'fine') {
+      const amount = ask('قيمة الغرامة (جنيه)؟', 50);
+      if (amount > 0) mayorCmd('resident.fine', { residentId: rid, amount, reason: 'مخالفة حارة' });
+      return;
+    }
+    if (act === 'grant') {
+      const amount = ask('قيمة المنحة (جنيه)؟', 100);
+      if (amount > 0) mayorCmd('treasury.grant', { residentId: rid, amount });
+      return;
+    }
+    if (act === 'reassign') {
+      const rep = sim.mayorReport();
+      const target = rep.homes.find(h => h.free > 0 && h.id !== (sim.getResident(rid) || {}).homeId);
+      if (!target) { sim.toast('مفيش شقة فاضية دلوقتي — افتح إيجار أو ابني بيت'); return; }
+      mayorCmd('housing.reassign', { residentId: rid, homeId: target.id });
+      return;
+    }
+    if (act === 'evict') {
+      const rep = sim.mayorReport();
+      const waiting = rep.homeless[0];
+      const args = { residentId: rid };
+      if (waiting && waiting.id !== rid) args.replacementId = waiting.id;
+      const res = sim.command('housing.evict', args);
+      if (!res.ok && !res.needsConfirm) { sim.toast(res.reason || 'مش قادر أطرد'); return; }
+      if (res.ok) { sim.toast('تم الطرد ✓'); renderMayor(); return; }
+      pendingCmd = { id: 'housing.evict', args, token: res.token };
+      $('confirmTitle').textContent = '⚠️ طرد من البيت';
+      $('confirmText').textContent = res.preview;
+      $('confirmWrap').hidden = false;
+      return;
+    }
+    if (act === 'trespass') { mayorCmd('resident.removeTrespasser', { residentId: rid }); return; }
+    if (act === 'auto') {
+      const res = sim.command('leader.auto', { on: btn.dataset.on === '1' });
+      if (res.ok) { sim.toast(res.aiMayor ? 'العمدة الآلي شغّال' : 'العمدة الآلي اتوقف'); renderMayor(); }
+      else sim.toast(res.reason || 'مش قادر');
+      return;
+    }
+    if (act === 'service') {
+      mayorCmd('service.toggle', { service: btn.dataset.service, on: btn.dataset.on === '1' });
+      return;
+    }
+    if (act === 'coverage') {
+      const res = sim.command('police.coverage', { level: btn.dataset.level });
+      if (res.ok) { sim.toast('تم ✓'); renderMayor(); } else sim.toast(res.reason || 'مش قادر');
+      return;
+    }
+    if (act === 'rentals') {
+      const res = sim.command('housing.rentals', { homeId: Number(btn.dataset.home), open: btn.dataset.open === '1' });
+      if (res.ok) { sim.toast('تم ✓'); renderMayor(); } else sim.toast(res.reason || 'مش قادر');
+      return;
+    }
+  });
+  /* التقاط أي تعديل على الخزنة من بره (العمدة الآلي) */
+  renderMayor();
+}
+
+if ($('confirmOk')) {
+  $('confirmOk').addEventListener('click', () => {
+    if (!pendingCmd) { closeConfirm(); return; }
+    const cmd = pendingCmd;
+    closeConfirm();
+    const res = sim.command(cmd.id, { ...cmd.args, confirm: true, token: cmd.token });
+    if (res.ok) { sim.toast('تم التنفيذ ✓'); renderMayor(); }
+    else sim.toast(res.reason || 'مش قادر أنفّذ');
+  });
+  $('confirmNo').addEventListener('click', closeConfirm);
+  $('confirmWrap').addEventListener('click', e => { if (e.target === $('confirmWrap')) closeConfirm(); });
+}
+
+if ($('tutNext')) {
+  $('tutNext').addEventListener('click', () => { sim.tutorialNext(); renderTutorial(true); });
+  $('tutPause').addEventListener('click', () => {
+    const snap = sim.tutorialSnapshot();
+    sim.tutorialPause(!snap.paused);
+    renderTutorial(true);
+  });
+  $('tutSkip').addEventListener('click', () => {
+    sim.tutorialSkip();
+    tutHidden = false;
+    renderTutorial(true);
+    sim.toast('اتخطى الشرح — تقدر ترجع له من زر «؟»');
+  });
+  $('tutClose').addEventListener('click', () => { tutHidden = true; renderTutorial(true); });
+}
+
+if ($('helpBtn')) {
+  $('helpBtn').addEventListener('click', () => {
+    sim.tutorialRestart();
+    tutHidden = false;
+    renderTutorial(true);
+  });
+}
 
 /* canvas interactions */
 canvas.addEventListener('pointerdown', e => {
@@ -3351,7 +4108,7 @@ if (hasSave()) {
    loop
    ------------------------------------------------------------ */
 let lastT = performance.now();
-let lastHud = 0, lastCard = 0, lastPeople = 0, lastTown = 0;
+let lastHud = 0, lastCard = 0, lastPeople = 0, lastTown = 0, lastTut = 0;
 
 function frame(now) {
   const dt = Math.min(0.06, (now - lastT) / 1000);
@@ -3363,11 +4120,13 @@ function frame(now) {
   if (now - lastHud > 220) { lastHud = now; syncHud(); }
   if (now - lastCard > 200) { lastCard = now; if (selectedId) updateCard(); }
   if (now - lastPeople > 750) { lastPeople = now; renderPeople(false); }
+  if (now - lastTut > 400) { lastTut = now; renderTutorial(); }
   if (now - lastTown > 900) {
     lastTown = now;
     if (!$('townBody').hidden) renderTown();
     if (!$('buildBody').hidden) renderBuild();
     if (!$('streetBody').hidden) renderStreet();
+    if (!$('mayorBody').hidden) renderMayor();
     if (nightBtn) {
       const awakeNow = sim.residents.length ? sim.awakeList().length : 0;
       const allAsleep = sim.residents.length > 0 && awakeNow === 0;
@@ -3390,4 +4149,4 @@ syncHud();
 requestAnimationFrame(frame);
 
 /* handy for debugging in the console */
-window.__harat = { sim, cam, select, openProfile, selectPlace, enterPlace, exitPlace, buildHere, renderBuild, saveGame, loadGame, updatePlaceCard, setTab, renderStreet, skipToMorning, buyCarFor };
+window.__harat = { sim, cam, select, openProfile, selectPlace, enterPlace, exitPlace, buildHere, renderBuild, renderMayor, renderTutorial, mayorCmd, saveGame, loadGame, updatePlaceCard, setTab, renderStreet, skipToMorning, buyCarFor };

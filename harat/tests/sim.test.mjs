@@ -499,5 +499,217 @@ section('١٣) التقسيط وحكاية البيوت من أول يوم');
   ok(fresh.households.length >= 1, 'فيه بيوت متكوّنة');
 }
 
+
+/* ---------------------------------------------------------- */
+section('١٤) العمدة: صلاحيات، خزنة، ضرايب، إسكان، تأكيد');
+{
+  const sim = boot(16);
+  const rep0 = sim.mayorReport();
+  ok(rep0.treasury === 0, 'الخزنة بتبدأ فاضية');
+  ok(sim.hasPermission('tax.set'), 'العمدة عنده صلاحية الضرايب');
+  ok(!sim.hasPermission('nope.at.all'), 'الصلاحيات الوهمية مرفوضة');
+
+  /* الدور الأقل صلاحية */
+  sim.mayor.leadership.roleId = 'observer';
+  ok(sim.command('treasury.collect', {}).ok === false, 'المراقب مايقدرش يحصّل ضرايب');
+  ok(sim.command('tax.set', { resident: 0.06, business: 0.03 }).ok === false, 'المراقب مايقدرش يغيّر الضريبة');
+  sim.mayor.leadership.roleId = 'mayor';
+
+  /* الضريبة: حدود + تأكيد */
+  const badTax = sim.command('tax.set', { resident: 0.9, business: 0.03, confirm: true });
+  ok(badTax.ok === false, 'ضريبة ٩٠٪ مرفوضة');
+  const nag = sim.command('tax.set', { resident: -1, business: 0.03, confirm: true });
+  ok(nag.ok === false, 'الضريبة السالبة مرفوضة');
+  const askTax = sim.command('tax.set', { resident: 0.09, business: 0.04 });
+  ok(askTax.needsConfirm === true && typeof askTax.token === 'number', 'تغيير الضريبة بيطلب تأكيد');
+  const doneTax = sim.command('tax.set', { resident: 0.09, business: 0.04, confirm: true, token: askTax.token });
+  ok(doneTax.ok === true && sim.mayor.tax.resident === 0.09, 'الضريبة اتظبطت بعد التأكيد');
+  const replay = sim.command('tax.set', { resident: 0.1, business: 0.04, confirm: true, token: askTax.token });
+  ok(replay.ok === false, 'التأكيد مايتستخدمش مرتين');
+
+  /* التحصيل */
+  const before = sim.mayor.treasury;
+  const col = sim.command('treasury.collect', {});
+  ok(col.ok && col.paid > 0, `التحصيل دخل ${col.paid} ج.م`);
+  ok(sim.mayor.treasury === before + col.paid, 'الخزنة زادت بنفس مبلغ التحصيل');
+  ok(sim.residents.every(r => r.money >= 0), 'مفيش رصيد سالب بعد التحصيل');
+
+  /* منحة: حدود وخزنة */
+  const poor = [...sim.residents].filter(r => !r.child).sort((a, b) => a.money - b.money)[0];
+  const tooBig = sim.command('treasury.grant', { residentId: poor.id, amount: 999999, confirm: true });
+  ok(tooBig.ok === false, 'منحة أكبر من الخزنة مرفوضة');
+  const m0 = poor.money;
+  const grantAsk = sim.command('treasury.grant', { residentId: poor.id, amount: 80 });
+  ok(grantAsk.needsConfirm === true, 'المنحة بتطلب تأكيد');
+  const grant = sim.command('treasury.grant', { residentId: poor.id, amount: 80, confirm: true, token: grantAsk.token });
+  ok(grant.ok && poor.money === m0 + 80, 'المنحة وصلت للساكن');
+
+  /* غرامة */
+  sim.mayor.treasury = 500;
+  const fineAsk = sim.command('resident.fine', { residentId: poor.id, amount: 60, reason: 'زبالة' });
+  ok(fineAsk.needsConfirm === true, 'الغرامة بتطلب تأكيد');
+  const fine = sim.command('resident.fine', { residentId: poor.id, amount: 60, confirm: true, token: fineAsk.token });
+  ok(fine.ok && fine.paid + fine.left === 60, 'الغرامة اتخصمت أو اتسجلت متأخرة');
+  ok(sim.command('resident.fine', { residentId: poor.id, amount: 5000, confirm: true }).ok === false, 'غرامة فوق الحد مرفوضة');
+
+  /* إسكان: نفس البيت مرفوض */
+  const tenant = sim.residents.find(r => !r.child && sim.homeOf(r));
+  const sameHome = sim.command('housing.reassign', { residentId: tenant.id, homeId: tenant.homeId, confirm: true });
+  ok(sameHome.ok === false, 'النقل لنفس البيت مرفوض');
+  const nowhere = sim.command('housing.reassign', { residentId: tenant.id, homeId: 999999, confirm: true });
+  ok(nowhere.ok === false, 'النقل لمكان مش موجود مرفوض');
+
+  /* الطرد: التأكيد + آخر عيلة */
+  const aloneHome = sim.places.find(p => p.kind === 'home' && sim.residents.filter(r => r.homeId === p.id && !r.child).length === 1);
+  if (aloneHome) {
+    const only = sim.residents.find(r => r.homeId === aloneHome.id && !r.child);
+    const noRepl = sim.command('housing.evict', { residentId: only.id, allowVacant: false });
+    ok(noRepl.ok === false, 'طرد آخر عيلة من غير بديل مرفوض');
+    if (noRepl.needsConfirm) {
+      const noRepl2 = sim.command('housing.evict', { residentId: only.id, confirm: true, token: noRepl.token });
+      ok(noRepl2.ok === false && /بديل|فاضي/.test(noRepl2.reason || ''), 'الرسالة بتشرح إن البيت مش هيفضل فاضي');
+    }
+  } else {
+    ok(true, 'مفيش بيت بساكن واحد — اتخطّى فحص البديل');
+  }
+
+  /* متطفّل */
+  const squatter = sim.residents.find(r => !r.child && !r.householdId) || sim.residents.find(r => !r.child);
+  const sqHome = sim.places.find(p => p.kind === 'home' && p.id !== squatter.homeId);
+  if (squatter.householdId) {
+    const hh = sim.householdOf(squatter);
+    if (hh) hh.members = hh.members.filter(id => id !== squatter.id);
+    squatter.householdId = null;
+  }
+  squatter.homeId = sqHome.id;
+  squatter.squatting = true;
+  ok(sim.isIllegalOccupant(squatter), 'المتطفّل اتكشف');
+  ok(sim.violationsOf(squatter).some(v => v.code === 'trespass'), 'المخالفة ظاهرة في التقرير');
+  const askRm = sim.command('resident.removeTrespasser', { residentId: squatter.id });
+  ok(askRm.needsConfirm === true, 'إخراج المتطفّل بيطلب تأكيد');
+  const rm = sim.command('resident.removeTrespasser', { residentId: squatter.id, confirm: true, token: askRm.token });
+  ok(rm.ok === true && squatter.homeId === null, 'المتطفّل اتشال من البيت');
+  ok(sim.command('resident.removeTrespasser', { residentId: squatter.id }).ok === false, 'مفيش متطفّل تاني بعد الإخراج');
+
+  /* خدمات وتغطية */
+  ok(sim.command('service.toggle', { service: 'police', on: false }).ok, 'خدمة الشرطة اتقفلت');
+  ok(sim.mayor.services.police === false, 'الخدمة اتسجلت');
+  ok(sim.command('service.toggle', { service: 'wifi', on: false }).ok === false, 'خدمة وهمية مرفوضة');
+  ok(sim.command('police.coverage', { level: 'high' }).ok && sim.mayor.policeCoverage === 'high', 'تغطية الشرطة اتغيرت');
+  ok(sim.command('police.coverage', { level: 'max' }).ok === false, 'مستوى تغطية وهمي مرفوض');
+  sim.mayor.services.police = true;
+
+  /* قفل الإيجار */
+  const home = sim.places.find(p => p.kind === 'home');
+  sim.command('housing.rentals', { homeId: home.id, open: false });
+  ok(home.rentalsOpen === false, 'الإيجار اتقفل');
+  ok(!sim.freeFlats().some(p => p.id === home.id), 'البيت المقفول مش بيستقبل سكان');
+  sim.command('housing.rentals', { homeId: home.id, open: true });
+
+  /* الحفظ */
+  const data = JSON.parse(JSON.stringify(sim.serialize()));
+  ok(data.v === SAVE_VERSION, `نسخة الحفظ ${SAVE_VERSION}`);
+  const sim2 = new Sim();
+  ok(sim2.hydrate(data).ok, 'حفظ العمدة فتح');
+  ok(Math.abs(sim2.mayor.treasury - sim.mayor.treasury) < 1, 'الخزنة اتحفظت');
+  ok(sim2.mayor.tax.resident === sim.mayor.tax.resident, 'الضريبة اتحفظت');
+  ok(sim2.mayor.services.streetlights === sim.mayor.services.streetlights, 'الخدمات اتحفظت');
+}
+
+/* ---------------------------------------------------------- */
+section('١٥) العمدة الآلي بيمشي بنفس الأوامر');
+{
+  const sim = boot(14);
+  sim.mayor.leadership.aiMayor = true;
+  sim.mayor.treasury = 60;
+  const day0 = sim.day;
+  for (let d = 0; d < 4; d++) { sim.day += 1; sim.newDay(); }
+  ok(sim.day - day0 === 4, 'أربع أيام عدّوا');
+  ok(sim.mayor.lastCollectDay >= day0, 'العمدة الآلي حصّل ضرايب');
+  ok(sim.mayor.history.length > 0, 'قرارات العمدة مسجلة');
+  ok(sim.mayor.tax.resident <= 0.15 + 1e-9, 'الآلي مرفعش الضريبة فوق الحد');
+  ok(sim.stats.taxes > 0, 'الضرايب المحصّلة في الإحصائيات');
+  const tw = sim.residents.filter(r => r.money < 0);
+  ok(tw.length === 0, 'مفيش أرصدة سالبة من تصرفات الآلي');
+}
+
+/* ---------------------------------------------------------- */
+section('١٦) الشرح التفاعلي: خطوات، تخطي، إعادة، حفظ');
+{
+  const sim = boot(8);
+  ok(sim.tutorialSnapshot().started === false, 'الشرح مش بيبدأ لوحده');
+  sim.tutorialStart();
+  const snap = sim.tutorialSnapshot();
+  ok(snap.step && snap.step.id === 'look', 'أول خطوة: اتعرف على الناس');
+  sim.tutorialFlag('profileOpened');
+  ok(sim.tutorialSnapshot().done.includes('look'), 'الخطوة اتعلّمت بفتح ملف');
+  ok(sim.tutorialSnapshot().index === 1, 'الشرح اتقدم');
+  sim.tutorialNext();
+  sim.tutorialNext();
+  ok(sim.tutorialSnapshot().done.length >= 3, 'زر «تالي» بيعلّم الخطوة');
+  sim.tutorialPause(true);
+  ok(sim.tutorialSnapshot().active === false, 'الإيقاف المؤقت بيوقف الشرح');
+  sim.tutorialPause(false);
+  sim.tutorialSkip();
+  ok(sim.tutorialSnapshot().finished === true && sim.tutorialSnapshot().done.length === 13, 'التخطي بيقفل كل الخطوات');
+  sim.tutorialRestart();
+  ok(sim.tutorialSnapshot().index === 0 && sim.tutorialSnapshot().finished === false, 'الإعادة بترجع لأول خطوة');
+  sim.tutorialFlag('profileOpened');
+  sim.tutorialFlag('enteredPlace');
+  sim.stats.meals = 1;
+  sim.tutorial.tick(sim);
+  ok(sim.tutorialSnapshot().done.length >= 3, 'الإنجاز الحقيقي بيعدّي الخطوات');
+  const data = JSON.parse(JSON.stringify(sim.serialize()));
+  const sim2 = new Sim();
+  sim2.hydrate(data);
+  ok(sim2.tutorialSnapshot().done.length === sim.tutorialSnapshot().done.length, 'تقدم الشرح اتحفظ');
+}
+
+/* ---------------------------------------------------------- */
+section('١٧) سرعة الوقت وطول اليوم');
+{
+  const sim = boot(4);
+  sim.speed = 1;
+  sim.setDayLength(1);
+  const base = sim.daySeconds();
+  ok(Math.abs(base - 150) < 1, `اليوم العادي ١٥٠ ثانية حقيقية (${base})`);
+  sim.setDayLength(0.5);
+  ok(sim.daySeconds() < base, 'الزمن النصفي بيقصّر اليوم');
+  sim.setDayLength(4);
+  ok(sim.daySeconds() > base * 3, 'الزمن الرباعي بيطوّل اليوم');
+  const clamped = sim.setDayLength(99);
+  ok(clamped.timeScale <= 4, 'القيمة الشاذة بتتقص عند ٤');
+  /* ١٠ ثواني حقيقية = ٩٦ دقيقة محاكاة عند ١× */
+  const sim2 = boot(4);
+  sim2.speed = 1;
+  sim2.setDayLength(1);
+  const m0 = sim2.minute;
+  run(sim2, 600);
+  const delta = ((sim2.minute - m0) % 1440 + 1440) % 1440;
+  ok(Math.abs(delta - 96) < 3, `١٠ ثواني = ${Math.round(delta)} دقيقة محاكاة`);
+}
+
+/* ---------------------------------------------------------- */
+section('١٨) شكل البيوت ثابت ومتنوّع');
+{
+  const sim = boot(10);
+  const homes = sim.places.filter(p => p.kind === 'home');
+  const sigs = homes.map(h => {
+    const look = h.look || {};
+    return [look.roof, look.wall, look.cols, look.doorStyle, look.doorColor, (look.extras || []).join('+')].join('|');
+  });
+  ok(new Set(sigs).size === homes.length, `كل عمارة شكلها مختلف (${new Set(sigs).size}/${homes.length})`);
+  ok(homes.every(h => h.look && h.look.roof), 'كل بيت ليه ستايل سقف');
+  ok(homes.every(h => h.look.zoneName), 'كل بيت ليه حتة في الحارة');
+  const first = JSON.stringify(homes.map(h => h.look));
+  sim.applyHomeLooks();
+  ok(JSON.stringify(homes.map(h => h.look)) === first, 'الأشكال ثابتة لو اتعادت');
+  const data = JSON.parse(JSON.stringify(sim.serialize()));
+  const sim2 = new Sim();
+  sim2.hydrate(data);
+  const after = JSON.stringify(sim2.places.filter(p => p.kind === 'home').map(h => h.look));
+  ok(after === first, 'الأشكال بتتحفظ وترجع زي ما هي');
+}
+
 console.log(`\n${fail === 0 ? '✅' : '❌'}  نجح ${ar(pass)} — فشل ${ar(fail)}`);
 process.exit(fail ? 1 : 0);
