@@ -18,6 +18,11 @@ const cam = { x: WORLD.w / 2, y: WORLD.h / 2, zoom: 1, fit: 1 };
 let selectedId = null;
 let hoverId = null;
 let showBubbles = true;
+let placeId = null;            /* selected building */
+let insideId = null;           /* building we are inside */
+let insideT = 0;               /* 0..1 enter animation */
+let outsideCam = null;
+let saveAcc = 0;
 const mouse = { x: 0, y: 0, in: false };
 let firstStart = true;
 
@@ -692,6 +697,573 @@ function drawPlaceExtras(p, now, night) {
   }
 }
 
+/* ------------------------------------------------------------
+   building lots, construction sites, shop state props
+   ------------------------------------------------------------ */
+function drawLot(p, now, night) {
+  const { x, y, w, h } = p;
+  const t = now / 1000;
+  const pr = p.project;
+
+  /* dirt */
+  ctx.fillStyle = '#cbb083';
+  rr(x, y, w, h, 6); ctx.fill();
+  ctx.strokeStyle = 'rgba(140,110,70,.55)';
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([7, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* gravel */
+  for (let i = 0; i < 14; i++) {
+    const gx = x + 10 + ((i * 37 + p.seed * 13) % (w - 20));
+    const gy = y + 12 + ((i * 53 + p.seed * 7) % (h - 24));
+    ctx.fillStyle = 'rgba(120,96,62,.25)';
+    ctx.beginPath(); ctx.arc(gx, gy, 1.2 + (i % 3) * 0.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  if (!pr) {
+    /* empty lot sign */
+    const bx = x + w / 2, by = y + h / 2 - 8;
+    ctx.strokeStyle = '#7a5a34'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(bx, by + 8); ctx.lineTo(bx, by + 24); ctx.stroke();
+    ctx.fillStyle = 'rgba(248,240,222,.95)';
+    rr(bx - 34, by - 12, 68, 22, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(90,66,36,.55)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#5a4530';
+    ctx.font = '700 8.4px Cairo, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('أرض للبناء', bx, by - 1);
+    return;
+  }
+
+  /* construction: scaffolding + growing walls */
+  const prog = pr.progress / 100;
+  const floors = 1 + prog * 2;
+  const bw = w * 0.66, bh = h * 0.42 * Math.min(2.4, floors);
+  const bx = x + (w - bw) / 2, by = y + h - 18 - bh;
+
+  ctx.fillStyle = 'rgba(60,44,24,.18)';
+  rr(bx + 5, by + 6, bw, bh, 4); ctx.fill();
+  ctx.fillStyle = shade('#c9a978', 0.05 - clamp((night || 0) * 0.4, 0, 0.25));
+  rr(bx, by, bw, bh, 3); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,66,36,.4)'; ctx.lineWidth = 1; ctx.stroke();
+
+  /* brick courses */
+  ctx.strokeStyle = 'rgba(120,90,55,.28)';
+  ctx.lineWidth = 0.8;
+  for (let yy = by + 7; yy < by + bh - 2; yy += 7) {
+    ctx.beginPath(); ctx.moveTo(bx + 2, yy); ctx.lineTo(bx + bw - 2, yy); ctx.stroke();
+  }
+
+  /* finished floors: slabs + window holes */
+  const fh = bh / floors;
+  const doneFloors = Math.floor(floors);
+  for (let f = 0; f < doneFloors; f++) {
+    const fb = by + bh - f * fh;
+    const ft = fb - fh;
+    for (const wx of [0.26, 0.6]) {
+      ctx.fillStyle = 'rgba(54,66,76,.72)';
+      rr(bx + bw * wx, ft + fh * 0.26, bw * 0.15, fh * 0.36, 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(240,232,214,.35)'; ctx.lineWidth = 0.8;
+      rr(bx + bw * wx, ft + fh * 0.26, bw * 0.15, fh * 0.36, 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(150,120,82,.9)';
+    rr(bx - 3, fb - 3, bw + 6, 4.4, 1.6); ctx.fill();
+  }
+
+  /* bricks + tools at the base */
+  ctx.fillStyle = 'rgba(160,104,74,.9)';
+  for (let i = 0; i < 4; i++) {
+    rr(bx + bw + 12 + (i % 2) * 8, y + h - 16 - Math.floor(i / 2) * 5, 9, 4.4, 1); ctx.fill();
+  }
+
+  /* scaffold: two poles on the right edge with rungs (kept off the facade) */
+  const topY = Math.max(y + 8, by - 16);
+  ctx.strokeStyle = 'rgba(120,96,64,.8)';
+  ctx.lineWidth = 1.4;
+  for (const poleX of [bx + bw + 5, bx + bw + 11]) {
+    ctx.beginPath(); ctx.moveTo(poleX, y + h - 10); ctx.lineTo(poleX, topY); ctx.stroke();
+  }
+  for (let yy = y + h - 16; yy > topY; yy -= 10) {
+    ctx.beginPath(); ctx.moveTo(bx + bw + 5, yy); ctx.lineTo(bx + bw + 11, yy - 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx + bw + 11, yy); ctx.lineTo(bx + bw + 5, yy - 3); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(90,66,36,.45)'; ctx.lineWidth = 1.2;
+  rr(bx, by, bw, bh, 3); ctx.stroke();
+
+  /* progress bar above the site */
+  const barW = w * 0.7, barX = x + (w - barW) / 2, barY = y + 8;
+  ctx.fillStyle = 'rgba(38,28,16,.62)';
+  rr(barX - 4, barY - 4, barW + 8, 12, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  rr(barX, barY, barW, 4.4, 3); ctx.fill();
+  ctx.fillStyle = '#e2b466';
+  rr(barX, barY, Math.max(1.5, barW * prog), 4.4, 3); ctx.fill();
+  ctx.font = '800 8.4px Cairo, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = 'rgba(38,28,16,.7)';
+  ctx.strokeText(`${ar(Math.round(pr.progress))}٪ — ${pr.name}`, x + w / 2, barY + 8.5);
+  ctx.fillStyle = '#f7e9c8';
+  ctx.fillText(`${ar(Math.round(pr.progress))}٪ — ${pr.name}`, x + w / 2, barY + 8.5);
+
+  /* dust puffs while active */
+  if (sim.workerAt(p.id)) {
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.5 + i / 3) % 1;
+      ctx.fillStyle = `rgba(226,208,176,${0.32 * (1 - ph)})`;
+      ctx.beginPath();
+      ctx.arc(bx + 10 + Math.sin(ph * 6 + i) * 12, by + bh - ph * 16, 3 + ph * 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawShopProps(p, now, night) {
+  if (!p.counter) return;
+  const staff = sim.staffOf(p).find(x => x.worker);
+  const worker = staff ? staff.worker : null;
+  const state = worker && worker.duty ? worker.duty.state : null;
+
+  /* stove behind the counter */
+  const sx = p.door.x - 27, sy = p.door.y - 1;
+  ctx.fillStyle = '#5c5347';
+  rr(sx - 7, sy - 10, 14, 10, 2); ctx.fill();
+  ctx.fillStyle = '#8a8175';
+  rr(sx - 5, sy - 12, 10, 3, 1.6); ctx.fill();
+  if (state === 'cook') {
+    const fl = 0.6 + Math.sin(now / 120) * 0.4;
+    ctx.fillStyle = `rgba(255,150,60,${0.55 + fl * 0.3})`;
+    ctx.beginPath();
+    ctx.moveTo(sx - 3, sy - 2);
+    ctx.quadraticCurveTo(sx, sy - 8 - fl * 3, sx + 3, sy - 2);
+    ctx.fill();
+    for (let i = 0; i < 2; i++) {
+      const ph = ((now / 900 + i / 2) % 1);
+      ctx.fillStyle = `rgba(240,235,220,${0.22 * (1 - ph)})`;
+      ctx.beginPath();
+      ctx.arc(sx + Math.sin(ph * 6) * 3, sy - 12 - ph * 16, 2 + ph * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /* status tag (only when the camera is close enough to read it) */
+  const st = sim.shopStatus(p);
+  const near = cam.fit * cam.zoom >= 1.45;
+  if (!st.open && near) {
+    const label = st.reason === 'empty' ? 'خلص الأكل' : st.reason === 'no-staff' ? 'مقفول' : 'مقفول';
+    ctx.fillStyle = 'rgba(150,58,40,.88)';
+    const tw = 20;
+    rr(p.door.x + 18, p.door.y - 26, tw * 1.6, 9, 3); ctx.fill();
+    ctx.fillStyle = '#fcecd8';
+    ctx.font = '700 5.6px Cairo, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, p.door.x + 18 + tw * 0.8, p.door.y - 21.4);
+  }
+}
+
+/* ------------------------------------------------------------
+   little state chips above people
+   ------------------------------------------------------------ */
+function agentState(r) {
+  const t = r.task;
+  if (!t) return null;
+  const place = sim.getPlace(t.placeId);
+  if (t.kind === 'work' && place) {
+    if (sim.foodPlace(place)) {
+      const st = r.duty && r.duty.state;
+      if (st === 'cook') return { icon: '🔥', label: 'بيطبخ', tone: 'work' };
+      if (st === 'carry') return { icon: '🍽️', label: 'شايل الأكل', tone: 'work' };
+      return { icon: '🤝', label: 'بيخدم', tone: 'work' };
+    }
+    if (place.kind === 'land') return { icon: '🔨', label: 'بيشتغل في البناء', tone: 'work' };
+  }
+  if (t.kind === 'buy') {
+    if (t.stage === 'queue') return { icon: '🧍', label: 'في الطابور', tone: 'wait' };
+    if (t.stage === 'order') return { icon: '🗣️', label: 'بيطلب', tone: 'wait' };
+    if (t.stage === 'pay') return { icon: '💰', label: 'بيدفع', tone: 'wait' };
+    if (t.stage === 'eat') return { icon: '🍽️', label: 'بياكل', tone: 'eat' };
+  }
+  if (t.kind === 'school') return { icon: '🎒', label: 'في المدرسة', tone: 'eat' };
+  return null;
+}
+
+let chipRects = [];
+function paintChip(x, y, icon, label, tone) {
+  const font = '700 7.6px Cairo, sans-serif';
+  ctx.font = font;
+  const text = `${icon} ${label}`;
+  const tw = ctx.measureText(text).width;
+  const w = tw + 12, h = 12;
+  /* نرفع الشريحة فوق اللي قبلها لو هتتراكب (زحمة عند المحل) */
+  let top = y - h;
+  for (let i = 0; i < 5; i++) {
+    const clash = chipRects.some(q =>
+      Math.abs(q.x + q.w / 2 - x) < (q.w + w) / 2 - 4 &&
+      Math.abs(q.y + q.h / 2 - (top + h / 2)) < q.h / 2 + h / 2 + 1);
+    if (!clash) break;
+    top -= h + 2;
+  }
+  const bg = tone === 'work' ? 'rgba(38,74,66,.92)' : tone === 'wait' ? 'rgba(74,58,30,.92)' : 'rgba(60,48,34,.88)';
+  ctx.fillStyle = bg;
+  rr(x - w / 2, top, w, h, 6); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,240,210,.28)'; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.fillStyle = '#f6ecd8';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, top + h / 2 + 0.4);
+  chipRects.push({ x: x - w / 2, y: top, w, h });
+}
+
+function drawStateChips(now) {
+  const zoom = cam.fit * cam.zoom;
+  chipRects = [];
+  const served = new Map();
+  for (const r of sim.residents) {
+    const st = agentState(r);
+    if (!st) continue;
+    const isSel = r.id === selectedId || r.id === hoverId;
+    const isStaff = r.task && r.task.kind === 'work';
+    const place = sim.getPlace(r.task.placeId);
+    const customerNearCounter = r.task.kind === 'buy' && ['order', 'pay'].includes(r.task.stage);
+    if (customerNearCounter) {
+      const n = served.get(r.task.placeId) || 0;
+      if (n >= 1) continue;
+      served.set(r.task.placeId, n + 1);
+    }
+    if (!isSel && !isStaff && !customerNearCounter) continue;
+    if (!isSel && zoom < 1.25) continue;
+    paintChip(r.x, r.y - 45, st.icon, st.label, st.tone);
+  }
+}
+
+/* ------------------------------------------------------------
+   interiors
+   ------------------------------------------------------------ */
+const INSIDE = { w: 980, h: 470 };
+
+function enterPlace(id) {
+  const p = sim.getPlace(id);
+  if (!p || p.kind === 'land') { sim.toast('الأرض دي لسه فاضية… ابدأ بناء الأول'); return; }
+  outsideCam = { x: cam.x, y: cam.y, zoom: cam.zoom };
+  insideId = id;
+  insideT = 0;
+  placeId = id;
+  sim.insideId = id;
+  $('insideBar').hidden = false;
+  $('insideName').textContent = p.name;
+  $('insideSub').textContent = sim.foodPlace(p) ? sim.shopStatus(p).label : p.kind === 'home' ? 'عمارة سكنية' : 'من جوه';
+  $('insideIcon').textContent = p.style === 'apartment' ? '🏠' : p.style === 'cafe' ? '☕' : p.style === 'mosque' ? '🕌' : '🏪';
+  $('toast').classList.remove('show');
+  hoverId = null;
+}
+
+function exitPlace() {
+  if (!insideId) return;
+  insideId = null;
+  sim.insideId = null;
+  $('insideBar').hidden = true;
+  if (outsideCam) { cam.x = outsideCam.x; cam.y = outsideCam.y; cam.zoom = outsideCam.zoom; clampCam(); }
+}
+
+function interiorLayout() {
+  const rw = Math.min(VW - 40, 940);
+  const rh = Math.min(VH - 150, 500);
+  const rx = (VW - rw) / 2;
+  const ry = (VH - rh) / 2 + 18;
+  return { rw, rh, rx, ry };
+}
+
+function drawInterior(now) {
+  const place = sim.getPlace(insideId);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#14100b';
+  ctx.fillRect(0, 0, VW, VH);
+  if (!place) { exitPlace(); return; }
+
+  insideT = Math.min(1, insideT + 0.06);
+  const { rw, rh, rx, ry } = interiorLayout();
+  const fw = sim.foodPlace(place);
+  const status = sim.shopStatus(place);
+
+  /* room shell */
+  ctx.save();
+  ctx.translate(rx, ry);
+  ctx.globalAlpha = 0.35 + 0.65 * insideT;
+
+  const wallGrad = ctx.createLinearGradient(0, 0, 0, rh);
+  wallGrad.addColorStop(0, '#3c2e1e');
+  wallGrad.addColorStop(1, '#251c13');
+  ctx.fillStyle = wallGrad;
+  rr(0, 0, rw, rh, 16); ctx.fill();
+
+  ctx.save();
+  ctx.beginPath(); rr(0, 0, rw, rh, 16); ctx.clip();
+
+  /* floor */
+  ctx.fillStyle = '#6b5137';
+  ctx.fillRect(0, rh * 0.42, rw, rh * 0.58);
+  for (let i = 0; i < 22; i++) {
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.05)';
+    const py = rh * 0.42 + i * (rh * 0.58 / 22);
+    ctx.fillRect(0, py, rw, rh * 0.58 / 22 - 1);
+  }
+  ctx.fillStyle = 'rgba(255,220,170,.09)';
+  ctx.fillRect(0, rh * 0.42 - 6, rw, 6);
+
+  /* back-wall shelves */
+  ctx.fillStyle = 'rgba(255,255,255,.055)';
+  for (let i = 0; i < 3; i++) ctx.fillRect(rw * 0.06 + i * rw * 0.11, rh * 0.1, rw * 0.085, rh * 0.2);
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = ['#d9a441', '#b6553f', '#5f8a5a', '#e6ddc7'][i % 4];
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(rw * 0.062 + i * rw * 0.026, rh * 0.1 + (i % 3) * 16, rw * 0.018, 10);
+    ctx.globalAlpha = 1;
+  }
+
+  /* lamps */
+  for (const lx of [rw * 0.3, rw * 0.7]) {
+    ctx.strokeStyle = 'rgba(20,14,8,.75)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, rh * 0.11); ctx.stroke();
+    const glow = ctx.createRadialGradient(lx, rh * 0.16, 2, lx, rh * 0.16, 110);
+    glow.addColorStop(0, 'rgba(255,214,140,.26)');
+    glow.addColorStop(1, 'rgba(255,214,140,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(lx, rh * 0.16, 110, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f3dcae';
+    ctx.beginPath(); ctx.arc(lx, rh * 0.14, 5.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /* stove (food shops) */
+  if (fw) {
+    const sx = rw * 0.2, sy = rh * 0.52;
+    ctx.fillStyle = '#4c443a';
+    rr(sx - 26, sy - 34, 52, 34, 5); ctx.fill();
+    ctx.fillStyle = '#6d6559';
+    rr(sx - 22, sy - 38, 44, 6, 3); ctx.fill();
+    ctx.fillStyle = '#2a251f';
+    ctx.beginPath(); ctx.ellipse(sx - 11, sy - 36, 8, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + 11, sy - 36, 8, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+    const cooking = sim.insideResidents(place).some(r => r.duty && r.duty.state === 'cook');
+    if (cooking) {
+      const fl = 0.55 + Math.sin(now / 110) * 0.45;
+      for (const gx of [sx - 11, sx + 11]) {
+        ctx.fillStyle = `rgba(255,140,54,${0.5 + fl * 0.35})`;
+        ctx.beginPath();
+        ctx.moveTo(gx - 5, sy - 33);
+        ctx.quadraticCurveTo(gx, sy - 44 - fl * 5, gx + 5, sy - 33);
+        ctx.fill();
+      }
+      for (let i = 0; i < 3; i++) {
+        const ph = ((now / 1200 + i / 3) % 1);
+        ctx.fillStyle = `rgba(240,235,220,${0.2 * (1 - ph)})`;
+        ctx.beginPath(); ctx.arc(sx + Math.sin(ph * 6 + i) * 8, sy - 46 - ph * 30, 3 + ph * 7, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    /* plates waiting */
+    for (let i = 0; i < Math.min(4, Math.ceil(place.stock / 5)); i++) {
+      ctx.fillStyle = '#f0e6d2';
+      ctx.beginPath(); ctx.ellipse(sx + 34 + i * 12, sy - 6, 8, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(90,70,40,.4)'; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+  }
+
+  const isHome = place.kind === 'home';
+
+  /* counter */
+  if (!isHome) {
+  const cx = rw * 0.5, cy = rh * 0.56;
+  ctx.fillStyle = 'rgba(30,20,10,.22)';
+  rr(cx - 130, cy + 20, 260, 12, 6); ctx.fill();
+  const cg = ctx.createLinearGradient(0, cy, 0, cy + 22);
+  cg.addColorStop(0, '#b2834f');
+  cg.addColorStop(1, '#7d5530');
+  ctx.fillStyle = cg;
+  rr(cx - 130, cy, 260, 22, 5); ctx.fill();
+  ctx.strokeStyle = 'rgba(50,32,16,.45)'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = '#cba06c';
+  rr(cx - 130, cy, 260, 5, 3); ctx.fill();
+  /* till + cups */
+  ctx.fillStyle = '#55606a';
+  rr(cx - 112, cy - 10, 26, 12, 3); ctx.fill();
+  ctx.fillStyle = '#8fbf8a';
+  ctx.fillRect(cx - 108, cy - 13, 18, 4);
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = '#e8e2d4';
+    rr(cx + 84 + i * 12, cy - 9, 8, 10, 2); ctx.fill();
+  }
+
+  }
+
+  /* living room for homes */
+  if (isHome) {
+    /* rug */
+    ctx.fillStyle = 'rgba(150,96,60,.32)';
+    ctx.beginPath(); ctx.ellipse(rw * 0.5, rh * 0.7, 165, 44, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(90,56,32,.35)'; ctx.lineWidth = 2; ctx.stroke();
+    /* telly on a low unit */
+    ctx.fillStyle = '#6b4a2a';
+    rr(rw * 0.5 - 62, rh * 0.44, 124, 16, 4); ctx.fill();
+    ctx.fillStyle = '#2c2a28';
+    rr(rw * 0.5 - 46, rh * 0.3, 92, 58, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(120,170,190,.35)';
+    rr(rw * 0.5 - 41, rh * 0.3 + 4, 82, 48, 2); ctx.fill();
+    /* sofa */
+    ctx.fillStyle = 'rgba(30,20,10,.22)';
+    ctx.beginPath(); ctx.ellipse(rw * 0.5, rh * 0.72, 96, 16, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#5d4126';
+    rr(rw * 0.5 - 88, rh * 0.62, 176, 30, 10); ctx.fill();
+    ctx.fillStyle = '#7a5734';
+    rr(rw * 0.5 - 88, rh * 0.58, 176, 16, 8); ctx.fill();
+    ctx.fillStyle = '#9c7247';
+    rr(rw * 0.5 - 84, rh * 0.605, 74, 22, 6); ctx.fill();
+    rr(rw * 0.5 + 10, rh * 0.605, 74, 22, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,18,8,.45)'; ctx.lineWidth = 1.2;
+    rr(rw * 0.5 - 88, rh * 0.58, 176, 34, 9); ctx.stroke();
+    /* bed in the corner */
+    ctx.fillStyle = 'rgba(30,20,10,.2)';
+    rr(rw * 0.86 - 54, rh * 0.42 + 60, 108, 12, 5); ctx.fill();
+    ctx.fillStyle = '#5d4126';
+    rr(rw * 0.86 - 54, rh * 0.42 - 4, 108, 76, 7); ctx.fill();
+    ctx.fillStyle = '#e8dfd0';
+    rr(rw * 0.86 - 48, rh * 0.42 + 6, 96, 56, 5); ctx.fill();
+    ctx.fillStyle = '#c96f5a';
+    rr(rw * 0.86 - 48, rh * 0.42 + 34, 96, 28, 5); ctx.fill();
+    ctx.fillStyle = '#f6efe3';
+    rr(rw * 0.86 - 42, rh * 0.42 + 10, 40, 17, 5); ctx.fill();
+    ctx.fillStyle = 'rgba(120,90,60,.28)';
+    ctx.fillRect(rw * 0.86 - 42, rh * 0.42 + 40, 84, 2);
+  }
+
+  /* tables for eating */
+  if (!isHome) for (const tx of [rw * 0.76, rw * 0.9]) {
+    const ty = rh * 0.6;
+    ctx.fillStyle = 'rgba(30,20,10,.2)';
+    ctx.beginPath(); ctx.ellipse(tx, ty + 14, 34, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a5f38';
+    ctx.beginPath(); ctx.ellipse(tx, ty, 32, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,26,12,.5)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#6b4a2a';
+    ctx.fillRect(tx - 3, ty, 6, 16);
+    /* chairs */
+    for (const off of [-30, 30]) {
+      ctx.fillStyle = '#7b5738';
+      rr(tx + off - 7, ty - 4, 14, 12, 3); ctx.fill();
+      ctx.fillStyle = '#9b7048';
+      rr(tx + off - 6, ty - 9, 12, 6, 2); ctx.fill();
+    }
+    /* plates */
+    ctx.fillStyle = '#f0e6d2';
+    ctx.beginPath(); ctx.ellipse(tx - 6, ty - 2, 7, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(tx + 8, ty + 2, 6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /* fridge + plant + clock */
+  ctx.fillStyle = '#c9d3d2';
+  rr(rw * 0.2 - 34, rh * 0.24, 34, 56, 4); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,80,80,.4)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#9fb0ad';
+  ctx.fillRect(rw * 0.2 - 32, rh * 0.24 + 24, 30, 2);
+  ctx.fillStyle = '#6f8a5c';
+  ctx.beginPath();
+  ctx.ellipse(rw * 0.2 - 17, rh * 0.24 - 6, 15, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8aa070';
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(rw * 0.2 - 28 + i * 7, rh * 0.24 - 12 - (i % 2) * 4, 7, 3.4, i * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const clockX = rw * 0.62, clockY = rh * 0.16;
+  ctx.fillStyle = '#f2e7ce';
+  ctx.beginPath(); ctx.arc(clockX, clockY, 13, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#5a4630'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#3a2c1c'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(clockX, clockY); ctx.lineTo(clockX, clockY - 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(clockX, clockY); ctx.lineTo(clockX + 5, clockY + 3); ctx.stroke();
+
+  /* door mat */
+  ctx.fillStyle = 'rgba(229,174,77,.14)';
+  rr(rw * 0.5 - 52, rh - 26, 104, 20, 6); ctx.fill();
+  ctx.strokeStyle = 'rgba(229,174,77,.4)'; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.fillStyle = 'rgba(244,228,196,.75)';
+  ctx.font = '700 10px Cairo, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🚪 خروج', rw * 0.5, rh - 15);
+
+  ctx.restore();   /* clip */
+
+  /* ---- people ---- */
+  const guests = sim.insideResidents(place);
+  const S = 2.15;
+  const drawn = [];
+  for (const r of guests) {
+    const slot = sim.interiorSlot(r, place);
+    if (!slot) continue;
+    drawn.push({ r, slot, y: slot.y });
+  }
+  drawn.sort((a, b) => a.y - b.y);
+  for (const item of drawn) {
+    const { r, slot } = item;
+    const px = rw * slot.x;
+    const py = rh * slot.y;
+    ctx.save();
+    ctx.scale(S, S);
+    const ox = r.x, oy = r.y, od = r.dir, om = r.micro;
+    r.x = px / S;
+    r.y = py / S;
+    r.micro = null;
+    r.dir = slot.pose === 'queue' || slot.pose === 'order' || slot.pose === 'pay' ? -Math.PI / 2 : 0;
+    drawAgent(r, now, 0);
+    r.x = ox; r.y = oy; r.dir = od; r.micro = om;
+    ctx.restore();
+
+    /* label (staggered so two people at one table don't hide each other's name) */
+    const ly = py + 6 + (slot.pose === 'eat' ? (drawn.indexOf(item) % 2) * 12 : 0);
+    ctx.font = '700 10.5px Cairo, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(12,9,6,.72)';
+    const lw = ctx.measureText(r.name).width + 12;
+    rr(px - lw / 2, ly, lw, 15, 7); ctx.fill();
+    ctx.fillStyle = r.id === selectedId ? '#f4d089' : '#efe1c6';
+    ctx.fillText(r.name, px, ly + 2);
+  }
+
+  /* ---- HUD inside the room (bottom-left) ---- */
+  ctx.fillStyle = 'rgba(16,12,8,.78)';
+  rr(18, rh - 66, 300, 52, 12); ctx.fill();
+  ctx.strokeStyle = 'rgba(229,174,77,.22)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.font = '700 11.5px Cairo, sans-serif';
+  if (place.kind === 'home') {
+    ctx.fillStyle = '#e2b466';
+    ctx.fillText('🏠 بيت', 306, rh - 50);
+  } else {
+    ctx.fillStyle = status.open ? '#9fd0a6' : '#e8a08c';
+    ctx.fillText(status.open ? '● مفتوح' : '● ' + status.label, 306, rh - 50);
+  }
+  if (fw) {
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    rr(150, rh - 43, 156, 7, 4); ctx.fill();
+    ctx.fillStyle = '#e2b466';
+    rr(150, rh - 43, 156 * clamp(place.stock / (place.stockMax || 1), 0, 1), 7, 4); ctx.fill();
+    ctx.fillStyle = '#e6d4b0';
+    ctx.font = '600 9.6px Cairo, sans-serif';
+    ctx.fillText(`مخزون ${ar(place.stock)} • طابور ${ar(place.queue.length)} • بيع ${ar(place.salesToday || 0)}`, 306, rh - 28);
+  } else if (place.kind === 'home') {
+    const tenants = sim.residents.filter(r => r.homeId === place.id);
+    ctx.fillStyle = '#e6d4b0';
+    ctx.font = '600 9.8px Cairo, sans-serif';
+    ctx.fillText(`ساكنين ${ar(tenants.length)} • شقق ${ar(place.flats || 0)} • إيجار ${money(place.rent || 0)}`, 306, rh - 30);
+  }
+  ctx.restore();  /* translate */
+
+  /* enter fade */
+  if (insideT < 1) {
+    ctx.fillStyle = `rgba(10,7,4,${1 - insideT})`;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+}
+
 function drawPlace(p, now, night) {
   const { x, y, w, h } = p;
   let k = 1;
@@ -710,6 +1282,11 @@ function drawPlace(p, now, night) {
 
   if (p.style === 'pitch') {
     drawPitch(p, now);
+    ctx.restore();
+    return;
+  }
+  if (p.style === 'lot') {
+    drawLot(p, now, night);
     ctx.restore();
     return;
   }
@@ -1328,6 +1905,7 @@ function draw(now) {
   ctx.fillStyle = '#cbb287';
   ctx.fillRect(0, 0, VW, VH);
   if (!sim.started) { drawBlueprint(now); return; }
+  if (insideId) { drawInterior(now); return; }
 
   worldTransform();
   const night = darkness(sim.minute);
@@ -1336,7 +1914,10 @@ function draw(now) {
   drawStreetLife(now / 1000, night);
 
   const sorted = sim.places.slice().sort((a, b) => (a.y + a.h) - (b.y + b.h));
-  for (const p of sorted) drawPlace(p, now, night);
+  for (const p of sorted) {
+    drawPlace(p, now, night);
+    if (p.counter) drawShopProps(p, now, night);
+  }
 
   for (const L of LAMPS) drawLamp(L.x, L.y, now / 1000, night);
   PALMS.forEach((pl, i) => drawPalm(pl.x, pl.y, now / 1000, i));
@@ -1376,6 +1957,7 @@ function draw(now) {
     if (p.counter) renderQueue.push({ y: p.door.y + 12, draw: () => drawCounter(p, now, night) });
   }
   renderQueue.sort((a, b) => a.y - b.y).forEach(item => item.draw());
+  drawStateChips(now);
   drawFx(now);
 
   /* bubbles + labels on top of everything */
@@ -1404,6 +1986,8 @@ const FILTERS = {
   work: e => e.kind === 'work',
   life: e => ['social', 'food', 'home'].includes(e.kind),
   talk: e => e.kind === 'talk',
+  love: e => e.kind === 'love',
+  build: e => e.kind === 'build',
   event: e => ['event', 'system'].includes(e.kind),
 };
 
@@ -1467,6 +2051,7 @@ function select(id) {
   const card = $('card');
   const r = sim.getResident(id);
   if (!r) { card.hidden = true; return; }
+  if (placeId) { placeId = null; $('placeCard').hidden = true; }
   card.hidden = false;
   updateCard();
   renderPeople(true);
@@ -1489,12 +2074,29 @@ const TASK_LABEL = {
   jobSearch: 'بيدور على شغل',
   family: 'قاعد مع عياله',
   shop: 'بيشتري حاجة',
+  buy: 'بياكل في المحل',
+  build: 'بيشتغل في البناء',
+  school: 'في المدرسة',
+  play: 'بيلعب',
   wander: 'بيتمشى',
 };
 
 function actionText(r) {
   if (!r.task) return r.phase === 'walk' ? 'ماشي في الشارع' : 'واقف بيفكر في حاله';
   const place = sim.getPlace(r.task.placeId);
+  if (r.task.kind === 'buy' && r.phase === 'act') {
+    const st = r.task.stage;
+    const where = place ? ' في ' + place.name : '';
+    if (st === 'queue') return 'واقف في الطابور' + where;
+    if (st === 'order') return 'بيطلب ' + (r.task.product ? r.task.product.name : 'أكل') + where;
+    if (st === 'pay') return 'بيدفع الحساب' + where;
+    if (st === 'eat') return 'قاعد ياكل' + where;
+  }
+  if (r.task.kind === 'work' && place && sim.foodPlace(place) && r.duty) {
+    if (r.duty.state === 'cook') return 'بيطبخ في ' + place.name;
+    if (r.duty.state === 'carry') return 'شايل الأكل للكاونتر';
+    return 'بيخدم الزباين في ' + place.name;
+  }
   const label = TASK_LABEL[r.task.kind] || 'مشغول';
   if (r.phase === 'walk') return `رايح ${place ? place.name : 'مكان'}… ${label}`;
   return `${label}${place ? ' في ' + place.name : ''}`;
@@ -1591,6 +2193,22 @@ function renderProfile(r) {
       ${likedBy.map(p => `<div class="heartrow" data-id="${p.id}">💌 <b>${esc(p.name)}</b> معجب بيه<span>وهو مش واخد باله</span></div>`).join('')}
     ` : '<div class="prof-empty">قلبه فاضي… مشغول بالشغل والإيجار.</div>'}
 
+    <div class="prof-sec">👨‍👩‍👧 العيلة والبيت</div>
+    ${(() => {
+      const spouse = r.spouseId ? sim.getResident(r.spouseId) : null;
+      const kids = (r.kids || []).map(id => sim.getResident(id)).filter(Boolean);
+      const parents = (r.parents || []).map(id => sim.getResident(id)).filter(Boolean);
+      const hh = sim.householdOf(r);
+      const home = sim.getPlace(r.homeId);
+      let out = '';
+      out += `<div class="actrow"><span>${spouse ? '💍' : r.child ? '👶' : '—'}</span><div><b>الحالة</b>${
+        spouse ? 'متجوز ' + esc(spouse.name) : r.child ? 'طفل في بيت أهله' : r.stage === 'engaged' ? 'متخطب' : 'أعزب'}</div></div>`;
+      if (parents.length) out += `<div class="actrow"><span>👨‍👩</span><div><b>أهله</b>${parents.map(p => esc(p.name)).join(' و ')}</div></div>`;
+      if (kids.length) out += `<div class="actrow"><span>🧒</span><div><b>عياله (${ar(kids.length)})</b>${kids.map(k => esc(k.name) + ' (' + ar(k.age) + ')').join(' • ')}</div></div>`;
+      if (home) out += `<div class="actrow"><span>🏠</span><div><b>ساكن في</b>${esc(home.name)} • شقة ${ar(r.flatNo)} • إيجار ${money(r.rentAmount || 0)}${hh ? ' • العيلة كلها ' + ar(hh.members.length) + ' أفراد' : ''}</div></div>`;
+      return out;
+    })()}
+
     <div class="prof-sec">🕘 آخر اللي عمله</div>
     ${acts.length ? acts.map(e => {
       const k = KINDS[e.kind] || KINDS.system;
@@ -1653,6 +2271,7 @@ function openProfile(id) {
   }
   renderPeople(true);
   peopleList.scrollTop = 0;
+  if (placeId) { placeId = null; $('placeCard').hidden = true; }
 }
 
 function focusResident(r) {
@@ -1698,10 +2317,282 @@ function syncHud() {
 }
 
 /* ------------------------------------------------------------
+   places: card, entering, building centre
+   ------------------------------------------------------------ */
+function placeIcon(p) {
+  if (p.style === 'apartment') return '🏠';
+  if (p.style === 'cafe') return '☕';
+  if (p.style === 'mosque') return '🕌';
+  if (p.style === 'school') return '🏫';
+  if (p.style === 'workshop') return '🔧';
+  if (p.style === 'bakery') return '🍞';
+  if (p.style === 'shop' || p.style === 'kiosk') return '🏪';
+  if (p.style === 'market') return '🥕';
+  if (p.style === 'pharmacy') return '💊';
+  if (p.style === 'youth' || p.style === 'pitch') return '⚽';
+  if (p.style === 'garage') return '🛺';
+  if (p.style === 'office') return '🏛️';
+  if (p.style === 'charity') return '🍲';
+  if (p.style === 'lot') return '🪵';
+  return '🏢';
+}
+
+function selectPlace(id) {
+  placeId = id;
+  const card = $('placeCard');
+  const p = id ? sim.getPlace(id) : null;
+  if (!p) { card.hidden = true; return; }
+  card.hidden = false;
+  updatePlaceCard();
+}
+
+function updatePlaceCard() {
+  const p = sim.getPlace(placeId);
+  const card = $('placeCard');
+  if (!p) { card.hidden = true; return; }
+  const st = sim.shopStatus(p);
+  $('plAvatar').textContent = placeIcon(p);
+  $('plName').textContent = p.name;
+  const owner = p.ownerId ? sim.getResident(p.ownerId) : null;
+  const staff = sim.staffOf(p);
+  const worker = staff.length ? staff[0].worker : null;
+  const rows = [];
+
+  $('plMeta').innerHTML = [
+    p.kind === 'home' ? 'عمارة سكنية' : p.kind === 'land' ? (p.project ? 'بيتبني' : 'أرض فاضية') : 'محل في الحارة',
+    owner ? '• مالك: ' + esc(owner.name) : '',
+  ].filter(Boolean).join(' ');
+
+  if (p.kind === 'land') {
+    $('plStatus').className = 'pl-status';
+    if (p.project) {
+      $('plStatus').textContent = '🏗️ بيتبني — ' + ar(Math.round(p.project.progress)) + '٪';
+      rows.push(`<div class="pl-row"><span>المشروع</span><b>${esc(p.project.name)}</b></div>`);
+      rows.push(`<div class="pl-row"><span>صاحب البناء</span><b>${owner ? esc(owner.name) : 'البلدية'}</b></div>`);
+      rows.push(`<div class="pl-row"><span>التكلفة</span><b>${money(p.project.cost)}</b></div>`);
+      rows.push(`<div class="pl-bar"><i style="width:${Math.round(p.project.progress)}%"></i></div>`);
+      if (worker) rows.push(`<div class="pl-row"><span>بيشتغل فيها</span><b>${esc(worker.name)}</b></div>`);
+    } else {
+      $('plStatus').textContent = '🪵 أرض فاضية — جاهزة للبناء';
+      rows.push(`<div class="pl-row"><span>تكلفة البناء</span><b>${money(1400)}</b></div>`);
+      rows.push(`<div class="pl-row"><span>النتيجة</span><b>عمارة بشقتين للسكن</b></div>`);
+      const can = sim.freeLots().some(l => l.id === p.id);
+      rows.push(`<button class="pl-enter" data-build="${p.id}" ${can ? '' : 'disabled'}>ابدأ البناء هنا 🏗️</button>`);
+    }
+  } else if (p.kind === 'home') {
+    const used = sim.flatUse(p);
+    const free = sim.freeFlatsIn(p);
+    const tenants = sim.residents.filter(r => r.homeId === p.id);
+    $('plStatus').className = 'pl-status ' + (free > 0 ? 'open' : 'closed');
+    $('plStatus').textContent = `🏠 ${ar(used)}/${ar(p.flats || 0)} شقق مشغولة${free ? ' — فيه شقة فاضية' : ''}`;
+    rows.push(`<div class="pl-row"><span>الإيجار</span><b>${money(p.rent || 0)}</b></div>`);
+    rows.push(`<div class="pl-row"><span>المالك</span><b>${owner ? esc(owner.name) : 'البلدية'}</b></div>`);
+    rows.push(`<div class="pl-row"><span>شقق فاضية</span><b class="${free ? 'ok' : 'bad'}">${ar(free)}</b></div>`);
+    const households = sim.households.filter(h => h.homeId === p.id);
+    if (households.length) {
+      rows.push(`<div class="pl-row"><span>عيلات</span><b>${ar(households.length)}</b></div>`);
+      rows.push(`<div class="pl-people">${households.map(h => h.members.map(id => sim.getResident(id)).filter(Boolean)
+        .map(m => `<span class="pl-chip" data-rid="${m.id}">${esc(m.name)}</span>`).join('')).join('')}</div>`);
+    }
+    if (tenants.length) {
+      rows.push(`<div class="pl-row"><span>الساكنين</span><b>${ar(tenants.length)}</b></div>`);
+      rows.push(`<div class="pl-people">${tenants.slice(0, 10).map(t => `<span class="pl-chip" data-rid="${t.id}">${esc(t.name)}${t.child ? ' 👶' : ''}</span>`).join('')}</div>`);
+    }
+  } else {
+    $('plStatus').className = 'pl-status ' + (st.open ? 'open' : 'closed');
+    $('plStatus').textContent = (st.open ? '● ' : '● ') + st.label;
+    rows.push(`<div class="pl-row"><span>البياع</span><b>${worker ? esc(worker.name) : 'مفيش حد'}</b></div>`);
+    rows.push(`<div class="pl-row"><span>المواعيد</span><b>${st.job ? timeLabel(st.job.start) + ' — ' + timeLabel(st.job.end) : '—'}</b></div>`);
+    if (sim.foodPlace(p)) {
+      rows.push(`<div class="pl-row"><span>المخزون</span><b class="${p.stock > 3 ? 'ok' : 'bad'}">${ar(p.stock)} / ${ar(p.stockMax)}</b></div>`);
+      rows.push(`<div class="pl-bar"><i style="width:${Math.round(100 * p.stock / (p.stockMax || 1))}%"></i></div>`);
+      rows.push(`<div class="pl-row"><span>في الطابور</span><b>${ar(p.queue.length)}</b></div>`);
+      rows.push(`<div class="pl-row"><span>بيع النهاردة</span><b>${ar(p.salesToday || 0)} طلب</b></div>`);
+    }
+    const queued = sim.sideOfShop(p);
+    if (queued.length) rows.push(`<div class="pl-people">${queued.map(q => `<span class="pl-chip" data-rid="${q.id}">${esc(q.name)}</span>`).join('')}</div>`);
+  }
+
+  $('plBody').innerHTML = rows.join('');
+  const enterBtn = $('plEnter');
+  enterBtn.disabled = p.kind === 'land';
+  enterBtn.textContent = p.kind === 'land' ? 'مفيش حاجة تدخلها' : 'ادخل المكان 🚪';
+}
+
+function renderBuild() {
+  if (!sim.started) return;
+  const lots = sim.places.filter(p => p.kind === 'land');
+  const homes = sim.places.filter(p => p.kind === 'home');
+  const projects = sim.projects.filter(p => !p.done);
+  const vacant = homes.reduce((n, h) => n + sim.freeFlatsIn(h), 0);
+
+  $('bldHomes').textContent = ar(homes.length);
+  $('bldLots').textContent = ar(sim.freeLots().length);
+  $('bldProjects').textContent = ar(projects.length);
+  $('bldVacant').textContent = ar(vacant);
+  $('bldCost').textContent = ar(1400);
+
+  $('lotList').innerHTML = lots.map(l => {
+    const pr = l.project;
+    const owner = pr && pr.ownerId ? sim.getResident(pr.ownerId) : null;
+    if (pr) {
+      const crew = sim.workerAt(l.id);
+      return `<div class="lot-row">
+        <div class="lh"><b>🏗️ ${esc(pr.name)}</b><small>${ar(Math.round(pr.progress))}٪</small></div>
+        <div class="prog"><i style="width:${Math.round(pr.progress)}%"></i></div>
+        <small>${owner ? 'صاحب البناء: ' + esc(owner.name) : 'بناء البلدية'}${crew ? ' • ' + esc(crew.name) + ' بيشتغل' : ' • مستني عمال'}</small>
+      </div>`;
+    }
+    return `<div class="lot-row">
+      <div class="lh"><b>🪵 أرض فاضية</b><small>${money(1400)}</small></div>
+      <small>تقدر تبني هنا عمارة بشقتين، والسكان يسكنوا فيها بالإيجار.</small>
+      <button class="row-btn" data-build="${l.id}">ابدأ البناء 🏗️</button>
+    </div>`;
+  }).join('') || '<div class="build-note">مفيش أراضي فاضية… الحارة اتملت.</div>';
+
+  $('homeList').innerHTML = homes.map(h => {
+    const used = sim.flatUse(h);
+    const free = sim.freeFlatsIn(h);
+    const owner = h.ownerId ? sim.getResident(h.ownerId) : null;
+    const tenants = sim.residents.filter(r => r.homeId === h.id);
+    const tags = [];
+    if (free > 0) tags.push(`<span class="tag free">${ar(free)} شقة فاضية</span>`);
+    if (owner) tags.push(`<span class="tag owned">مالك: ${esc(owner.name)}</span>`);
+    tags.push(`<span class="tag">إيجار ${money(h.rent || 0)}</span>`);
+    return `<div class="home-row">
+      <div class="lh"><b>${placeIcon(h)} ${esc(h.name)}</b><small>${ar(used)}/${ar(h.flats || 0)}</small></div>
+      <div class="tags">${tags.join('')}</div>
+      <small>${tenants.length ? tenants.slice(0, 8).map(t => esc(t.name) + (t.child ? ' 👶' : '')).join(' • ') : 'فاضي — محدش ساكن'}</small>
+    </div>`;
+  }).join('');
+
+  const vacantList = homes.filter(h => sim.freeFlatsIn(h) > 0)
+    .sort((a, b) => (a.rent || 0) - (b.rent || 0))
+    .slice(0, 6)
+    .map(h => `<div class="home-row"><div class="lh"><b>${esc(h.name)}</b><small>${money(h.rent || 0)}</small></div>
+      <small>${ownerLabel(h)}</small></div>`).join('');
+  $('marketList').innerHTML = vacantList
+    ? `<div class="section-title">شقق للإيجار</div>${vacantList}`
+    : '';
+}
+
+function ownerLabel(home) {
+  const owner = home.ownerId ? sim.getResident(home.ownerId) : null;
+  return owner ? 'المالك: ' + owner.name + ' — بيحصل على الإيجار' : 'إيجار البلدية';
+}
+
+function buildHere(lotId) {
+  const res = sim.startProject(lotId, {});
+  if (!res.ok) { sim.toast('مش قادر أبني: ' + res.reason); return; }
+  sim.toast('بدأ البناء في الأرض الفاضية… استنى العمال');
+  renderBuild();
+  if (placeId === lotId) updatePlaceCard();
+}
+
+/* ------------------------------------------------------------
+   saving (localStorage — same shape as sim.serialize())
+   ------------------------------------------------------------ */
+const SAVE_KEY = 'harat.save.v3';
+
+function hasSave() {
+  try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+}
+
+function saveGame(showToast) {
+  if (!sim.started) return false;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(sim.serialize()));
+    if (showToast) sim.toast('الحارة اتحفظت 💾');
+    return true;
+  } catch (e) {
+    if (showToast) sim.toast('المتصفح مش سامح بالحفظ');
+    return false;
+  }
+}
+
+function applyLoadedState() {
+  sim.residents.forEach(r => { r.spawnAt = 0; r._bubbleAt = 0; r._seenSpeech = ''; });
+  sim.places.forEach(p => { p.appear = 0; });
+  uiLogs = sim.logs.slice(-300);
+  logRows = 0;
+  logList.innerHTML = '';
+  const rows = uiLogs.filter(FILTERS[filter]).slice(-200).reverse();
+  if (rows.length) {
+    const frag = document.createDocumentFragment();
+    for (const e of rows) frag.appendChild(logRow(e, false));
+    logList.appendChild(frag);
+    logRows = rows.length;
+  } else {
+    logList.innerHTML = '<div class="log-empty">السجل فاضي… سيب الحارة تعيش.</div>';
+  }
+  $('intro').hidden = true;
+  $('hint').classList.add('gone');
+  selectedId = null;
+  placeId = null;
+  profileId = null;
+  $('card').hidden = true;
+  $('placeCard').hidden = true;
+  insideId = null;
+  $('insideBar').hidden = true;
+  cam.zoom = 1;
+  cam.x = WORLD.w / 2;
+  cam.y = WORLD.h / 2;
+  clampCam();
+  renderPeople(true);
+  renderTown();
+  renderBuild();
+  syncHud();
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    const res = sim.hydrate(data);
+    if (!res.ok) { sim.toast('مش قادر أفتح الحفظ: ' + res.reason); return false; }
+    applyLoadedState();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function hitPlace(wx, wy) {
+  let best = null;
+  for (const p of sim.places) {
+    if (p.style === 'lot' && !p.project) {
+      if (wx >= p.x && wx <= p.x + p.w && wy >= p.y && wy <= p.y + p.h) best = p;
+      continue;
+    }
+    if (wx >= p.x && wx <= p.x + p.w && wy >= p.y - 12 && wy <= p.y + p.h + 14) {
+      if (!best || p.y + p.h > best.y + best.h) best = p;
+    }
+  }
+  return best;
+}
+
+function hitInterior(mx, my) {
+  const place = sim.getPlace(insideId);
+  if (!place) return null;
+  const { rw, rh, rx, ry } = interiorLayout();
+  let best = null, bd = 46;
+  for (const r of sim.insideResidents(place)) {
+    const slot = sim.interiorSlot(r, place);
+    if (!slot) continue;
+    const px = rx + rw * slot.x, py = ry + rh * slot.y - 34;
+    const d = Math.hypot(mx - px, my - py);
+    if (d < bd) { bd = d; best = r; }
+  }
+  return best;
+}
+
+/* ------------------------------------------------------------
    events / controls
    ------------------------------------------------------------ */
 $('startBtn').addEventListener('click', () => {
   $('intro').hidden = true;
+  try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
   sim.summonTown();
   const now = performance.now();
   sim.places.forEach((p, i) => { p.appear = now + i * 42; });
@@ -1748,7 +2639,13 @@ $('resetBtn').addEventListener('click', () => {
 });
 
 function resetGame() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
   sim.reset();
+  insideId = null;
+  sim.insideId = null;
+  $('insideBar').hidden = true;
+  placeId = null;
+  $('placeCard').hidden = true;
   uiLogs = [];
   fxList.length = 0;
   profileId = null;
@@ -1825,9 +2722,11 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
     $('logBody').hidden = tab !== 'log';
     $('peopleBody').hidden = tab !== 'people';
     $('townBody').hidden = tab !== 'town';
+    $('buildBody').hidden = tab !== 'build';
     $('filters').style.display = tab === 'log' ? 'flex' : 'none';
+    if (tab === 'build') renderBuild();
     if (tab === 'people') renderPeople(true);
-    else if (tab === 'log') { /* profile stays for later */ }
+    if (tab === 'town') renderTown();
     if (tab === 'town') renderTown();
   });
 });
@@ -1897,9 +2796,18 @@ canvas.addEventListener('pointerup', e => {
   canvas.classList.remove('dragging');
   if (drag && !drag.moved) {
     const rect = canvas.getBoundingClientRect();
-    const w = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    if (insideId) {
+      const person = hitInterior(mx, my);
+      if (person) select(person.id);
+      return;
+    }
+    const w = screenToWorld(mx, my);
     const hit = hitResident(w.x, w.y);
-    select(hit ? hit.id : null);
+    if (hit) { select(hit.id); return; }
+    const place = hitPlace(w.x, w.y);
+    if (place) selectPlace(place.id);
+    else { selectPlace(null); select(null); }
   }
   drag = null;
 });
@@ -1932,8 +2840,54 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'b' || e.key === 'B') { $('bubbleBtn').click(); }
   else if (e.key === '+' || e.key === '=') zoomAt(1.2, VW / 2, VH / 2);
   else if (e.key === '-') zoomAt(0.85, VW / 2, VH / 2);
-  else if (e.key === 'Escape') select(null);
+  else if (e.key === 'Escape') {
+    if (insideId) exitPlace();
+    else if (placeId) selectPlace(null);
+    else select(null);
+  }
 });
+
+$('saveBtn').addEventListener('click', () => saveGame(true));
+
+$('resumeBtn').addEventListener('click', () => {
+  if (loadGame()) sim.toast('استكملت الحارة المحفوظة');
+  else { $('resumeBtn').hidden = true; sim.onToast('مفيش حفظ صالح'); }
+});
+
+$('exitBtn').addEventListener('click', () => exitPlace());
+
+$('plClose').addEventListener('click', () => selectPlace(null));
+$('plEnter').addEventListener('click', () => {
+  if (placeId) enterPlace(placeId);
+});
+
+$('placeCard').addEventListener('click', e => {
+  const buildBtn = e.target.closest('[data-build]');
+  if (buildBtn) { buildHere(buildBtn.dataset.build); return; }
+  const chip = e.target.closest('[data-rid]');
+  if (chip) { const r = sim.getResident(Number(chip.dataset.rid)); if (r) { select(r.id); openProfile(r.id); } }
+});
+
+$('buildScroll').addEventListener('click', e => {
+  const buildBtn = e.target.closest('[data-build]');
+  if (buildBtn) buildHere(buildBtn.dataset.build);
+});
+
+/* keep the save fresh */
+setInterval(() => { if (sim.started && !document.hidden) saveGame(false); }, 15000);
+window.addEventListener('beforeunload', () => { if (sim.started) saveGame(false); });
+if (document.addEventListener) document.addEventListener('visibilitychange', () => { if (document.hidden && sim.started) saveGame(false); });
+
+/* cold start: resume an existing town if there is one */
+if (hasSave()) {
+  if (loadGame()) {
+    sim.onToast('استكملت الحارة اللي سبتها 💾');
+  } else {
+    $('resumeBtn').hidden = false;
+  }
+} else {
+  $('resumeBtn').hidden = true;
+}
 
 /* ------------------------------------------------------------
    loop
@@ -1951,7 +2905,17 @@ function frame(now) {
   if (now - lastHud > 220) { lastHud = now; syncHud(); }
   if (now - lastCard > 200) { lastCard = now; if (selectedId) updateCard(); }
   if (now - lastPeople > 750) { lastPeople = now; renderPeople(false); }
-  if (now - lastTown > 900) { lastTown = now; if (!$('townBody').hidden) renderTown(); }
+  if (now - lastTown > 900) {
+    lastTown = now;
+    if (!$('townBody').hidden) renderTown();
+    if (!$('buildBody').hidden) renderBuild();
+    if (placeId) updatePlaceCard();
+  }
+  if (insideId) {
+    const p = sim.getPlace(insideId);
+    if ($('insideName').textContent !== (p ? p.name : '')) { if (p) $('insideName').textContent = p.name; }
+    if (p && sim.foodPlace(p)) $('insideSub').textContent = sim.shopStatus(p).label;
+  }
 
   requestAnimationFrame(frame);
 }
@@ -1961,4 +2925,4 @@ syncHud();
 requestAnimationFrame(frame);
 
 /* handy for debugging in the console */
-window.__harat = { sim, cam, select, openProfile };
+window.__harat = { sim, cam, select, openProfile, selectPlace, enterPlace, exitPlace, buildHere, renderBuild, saveGame, loadGame, updatePlaceCard };
