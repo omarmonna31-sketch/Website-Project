@@ -1,7 +1,7 @@
 /* ============================================================
    حياة الحارات — rendering + interface
    ============================================================ */
-import { Sim, WORLD, ar, timeLabel, money, KINDS, tod, PLACE_DEFS } from './sim.js';
+import { Sim, WORLD, ar, timeLabel, money, KINDS, tod, PLACE_DEFS, CAR_MODELS, CAR_DOWN_RATE, SAVE_KEY } from './sim.js';
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -313,17 +313,22 @@ function drawStreetLife(t, night) {
   ctx.beginPath(); ctx.arc(cx - 5, cy - 11, 3, 0, Math.PI * 2); ctx.arc(cx + 3, cy - 12, 3, 0, Math.PI * 2); ctx.fill();
 
   /* string lights across the main street */
+  /* زينة معلّقة بين البيوت فوق الشارع (بتتدلدل من النص) */
+  const buntingSkip = sim.activeStreetMatch();
   for (const sx of [300, 940]) {
-    ctx.strokeStyle = 'rgba(60,48,34,.5)';
+    /* مش بنعلّق زينة في وش ماتش الكورة */
+    if (buntingSkip && Math.abs((buntingSkip.area.x + buntingSkip.area.w / 2) - sx) < 130) continue;
+    const x0 = sx - 46, x1 = sx + 46, yTop = 344, ySag = 376;
+    ctx.strokeStyle = 'rgba(60,48,34,.42)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(sx - 34, 360);
-    ctx.quadraticCurveTo(sx, 414, sx + 34, 460);
+    ctx.moveTo(x0, yTop);
+    ctx.quadraticCurveTo(sx, ySag, x1, yTop);
     ctx.stroke();
     for (let i = 1; i < 7; i++) {
       const k = i / 7;
-      const x = (1 - k) * (1 - k) * (sx - 34) + 2 * (1 - k) * k * sx + k * k * (sx + 34);
-      const y = (1 - k) * (1 - k) * 360 + 2 * (1 - k) * k * 414 + k * k * 460;
+      const x = (1 - k) * (1 - k) * x0 + 2 * (1 - k) * k * sx + k * k * x1;
+      const y = (1 - k) * (1 - k) * yTop + 2 * (1 - k) * k * ySag + k * k * yTop;
       const on = night > 0.2;
       ctx.fillStyle = on ? 'rgba(255,206,116,.95)' : 'rgba(238,225,192,.7)';
       ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
@@ -334,10 +339,11 @@ function drawStreetLife(t, night) {
     }
   }
 
-  /* two cars crawling down the main street */
+  /* two cars crawling down the main street — بتقف لو فيه كورة في الشارع */
   const span = WORLD.w + 280;
-  const carAX = ((sim.minute * 1.5) % span) - 140;
-  const carBX = span - ((sim.minute * 1.15 + 760) % span) - 140;
+  const clock = sim.trafficClock != null ? sim.trafficClock : sim.minute;
+  const carAX = holdForGame(((clock * 1.5) % span) - 140, 1);
+  const carBX = holdForGame(span - ((clock * 1.15 + 760) % span) - 140, -1);
   drawCar(carAX, 397, 1, '#f2ede0', night);
   drawCar(carBX, 423, -1, '#8fb6bd', night);
 
@@ -363,7 +369,17 @@ function drawStreetLife(t, night) {
   }
 }
 
-function drawCar(x, y, dir, color, night) {
+function holdForGame(x, dir) {
+  const m = sim.activeStreetMatch && sim.activeStreetMatch();
+  if (!m) return x;
+  const a = m.area;
+  const left = a.x - 26, right = a.x + a.w + 26;
+  if (dir > 0 && x > left - 54 && x < right) return left - 54;
+  if (dir < 0 && x < right + 54 && x > left) return right + 54;
+  return x;
+}
+
+function drawCar(x, y, dir, color, night, opts = {}) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(dir, 1);
@@ -380,15 +396,20 @@ function drawCar(x, y, dir, color, night) {
   rr(-7, -12.5, 7, 6, 1.5); ctx.fill();
   rr(1.5, -12.5, 8, 6, 1.5); ctx.fill();
 
-  /* cairo taxi checker */
-  ctx.fillStyle = 'rgba(40,32,24,.75)';
-  ctx.fillRect(-18, 0, 36, 2.4);
-  ctx.fillStyle = 'rgba(250,246,232,.85)';
-  for (let i = 0; i < 6; i++) ctx.fillRect(-18 + i * 6 + 3, 0, 3, 2.4);
+  if (!opts.plain) {
+    /* cairo taxi checker */
+    ctx.fillStyle = 'rgba(40,32,24,.75)';
+    ctx.fillRect(-18, 0, 36, 2.4);
+    ctx.fillStyle = 'rgba(250,246,232,.85)';
+    for (let i = 0; i < 6; i++) ctx.fillRect(-18 + i * 6 + 3, 0, 3, 2.4);
 
-  /* roof sign */
-  ctx.fillStyle = '#e3c277';
-  rr(-5, -18, 10, 4, 1.5); ctx.fill();
+    /* roof sign */
+    ctx.fillStyle = '#e3c277';
+    rr(-5, -18, 10, 4, 1.5); ctx.fill();
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    rr(-9, -14.5, 21, 1.6, 1); ctx.fill();
+  }
 
   ctx.fillStyle = '#2b2620';
   ctx.beginPath();
@@ -483,6 +504,18 @@ function drawWindows(p, lit) {
   }
 }
 
+/* كل باب بيتفتح ويتقفل مع أنيميشن الدخول/الخروج */
+let DOORS = new Map();
+function computeDoors() {
+  DOORS = new Map();
+  for (const r of sim.residents) {
+    if (!r.anim) continue;
+    const pr = clamp(r.anim.t / 1.15, 0, 1);
+    const k = Math.sin(pr * Math.PI);
+    DOORS.set(r.anim.placeId, Math.max(DOORS.get(r.anim.placeId) || 0, k));
+  }
+}
+
 function drawDoor(p) {
   const { x, y, w, h } = p;
   const dx = x + w / 2;
@@ -495,11 +528,21 @@ function drawDoor(p) {
   ctx.fillStyle = '#3d2b1a';
   rr(dx - dw / 2 - 2, y + h - dh - 2, dw + 4, dh + 2, 6); ctx.fill();
 
+  const openK = DOORS.get(p.id) || 0;
+  if (openK > 0.2) {
+    /* الباب مفتوح: فتحة ضلمة جوه + ضلفة متنية على الجنب */
+    ctx.fillStyle = '#211a13';
+    rr(dx - dw / 2, y + h - dh, dw, dh, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,206,128,.20)';
+    rr(dx - dw / 2 + 2, y + h - dh + 2, dw - 4, dh * 0.5, 3); ctx.fill();
+  }
+
   const g = ctx.createLinearGradient(0, y + h - dh, 0, y + h);
   if (isMetal) { g.addColorStop(0, '#7d94a3'); g.addColorStop(1, '#546b7a'); }
   else { g.addColorStop(0, '#95623a'); g.addColorStop(1, '#6e4526'); }
   ctx.fillStyle = g;
-  rr(dx - dw / 2, y + h - dh, dw, dh, 5); ctx.fill();
+  const leafW = Math.max(2, dw * (1 - openK * 0.88));
+  rr(dx - dw / 2 + (openK > 0.5 ? dw * 0.55 : 0), y + h - dh, leafW, dh, 4); ctx.fill();
   if (isMetal) {
     ctx.strokeStyle = 'rgba(35,48,58,.4)';
     ctx.lineWidth = 1;
@@ -532,6 +575,51 @@ function drawPlaceExtras(p, now, night) {
   const doorX = p.door.x;
 
   switch (p.style) {
+    case 'dealer': {
+      /* واجهة زجاج + عربيتين معروضين + يافطة مفتوح */
+      ctx.fillStyle = 'rgba(180,215,228,.55)';
+      rr(x + 12, y + h - 52, w - 24, 34, 4); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,90,105,.45)'; ctx.lineWidth = 1.2; ctx.stroke();
+      for (let i = 1; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + 12 + i * ((w - 24) / 3), y + h - 52);
+        ctx.lineTo(x + 12 + i * ((w - 24) / 3), y + h - 18);
+        ctx.stroke();
+      }
+      /* عربيتين واقفين قصاد المعرض */
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      drawCar(x + 26, y + h + 12, 1, '#c94f43', 0, { plain: true });
+      drawCar(x + w - 30, y + h + 12, -1, '#e8e0cd', 0, { plain: true });
+      ctx.restore();
+      drawAwning(doorX, y + h - 36, 70, '#3f7f8f', '#efe6cc');
+      break;
+    }
+    case 'police': {
+      /* لوحة صغيرة + شرطة على السطح + علامة النجمة */
+      ctx.fillStyle = '#2f4f74';
+      rr(x + w - 34, y + 16, 22, 16, 3); ctx.fill();
+      ctx.fillStyle = '#f2e6c8';
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a1 = -Math.PI / 2 + i * (Math.PI * 2 / 5);
+        const a2 = a1 + Math.PI / 5;
+        ctx.lineTo(x + w - 23 + Math.cos(a1) * 6, y + 24 + Math.sin(a1) * 6);
+        ctx.lineTo(x + w - 23 + Math.cos(a2) * 2.6, y + 24 + Math.sin(a2) * 2.6);
+      }
+      ctx.closePath(); ctx.fill();
+      /* إشارة فوق السطح */
+      const blink = Math.sin(t * 3) > 0;
+      ctx.fillStyle = blink ? '#d44a3a' : '#3f6fb0';
+      ctx.beginPath(); ctx.arc(x + w / 2, y - 5, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = blink ? 'rgba(212,74,58,.25)' : 'rgba(63,111,176,.25)';
+      ctx.beginPath(); ctx.arc(x + w / 2, y - 5, 11, 0, Math.PI * 2); ctx.fill();
+      /* سيف ونجمة بسيطة على الحيطة */
+      ctx.strokeStyle = 'rgba(240,232,208,.55)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(x + 22, y + h - 34, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 22, y + h - 40); ctx.lineTo(x + 22, y + h - 28); ctx.stroke();
+      break;
+    }
     case 'apartment': {
       /* roof tank + dish + laundry */
       ctx.fillStyle = '#b8b3a5';
@@ -1206,6 +1294,22 @@ function drawInterior(now) {
     const { r, slot } = item;
     const px = rw * slot.x;
     const py = rh * slot.y;
+    if (slot.pose === 'sleep') {
+      /* نايم في السرير */
+      const zz = 0.6 + Math.sin(now / 520 + r.id) * 0.25;
+      ctx.globalAlpha = zz;
+      ctx.font = '700 13px Cairo, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('💤', px, py - 16);
+      ctx.globalAlpha = 1;
+      ctx.font = '700 9.5px Cairo, sans-serif';
+      ctx.fillStyle = 'rgba(12,9,6,.6)';
+      const lw2 = ctx.measureText(r.name).width + 10;
+      rr(px - lw2 / 2, py + 4, lw2, 13, 6); ctx.fill();
+      ctx.fillStyle = '#d9cbb0';
+      ctx.fillText(r.name, px, py + 10.5);
+      continue;
+    }
     ctx.save();
     ctx.scale(S, S);
     const ox = r.x, oy = r.y, od = r.dir, om = r.micro;
@@ -1365,6 +1469,113 @@ function drawPitch(p, now) {
 /* ------------------------------------------------------------
    drawing: residents
    ------------------------------------------------------------ */
+function drawOwnedCar(x, y, dir, car, night, parked) {
+  ctx.save();
+  if (parked) ctx.globalAlpha = 1;
+  drawCar(x, y, dir, car.color || '#d8d2c2', night, { plain: true });
+  /* نمرة العربية */
+  if (parked) {
+    ctx.fillStyle = 'rgba(20,16,12,.55)';
+    rr(x - 11, y + 9, 22, 6, 2); ctx.fill();
+    ctx.fillStyle = '#f2e6c8';
+    ctx.font = '600 4.6px Cairo, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(car.plate || '', x, y + 12);
+  }
+  ctx.restore();
+}
+
+/* كورة: جونين + كورة بتتنطط */
+function drawMatch(m, now, night) {
+  const a = m.area;
+  const cy = a.y + a.h / 2;
+  const t = now / 1000;
+  ctx.save();
+  /* أرضية الشارع/الملعب */
+  if (m.street) {
+    ctx.fillStyle = 'rgba(255,240,200,.10)';
+    rr(a.x, a.y, a.w, a.h, 8); ctx.fill();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = 'rgba(255,246,220,.5)';
+    ctx.lineWidth = 1.4;
+    rr(a.x, a.y, a.w, a.h, 8); ctx.stroke();
+    ctx.setLineDash([]);
+    /* حواجز بسيطة (طوب/شنط) عشان العربيات تفهم */
+    for (const bx of [a.x - 6, a.x + a.w + 6]) {
+      ctx.fillStyle = '#b98b52';
+      rr(bx - 3, a.y + 4, 6, a.h - 8, 2); ctx.fill();
+    }
+  }
+  /* جونين */
+  for (const side of [-1, 1]) {
+    const gx = side < 0 ? a.x + 4 : a.x + a.w - 4;
+    ctx.strokeStyle = 'rgba(250,246,232,.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(gx, cy - 13); ctx.lineTo(gx, cy + 13);
+    ctx.moveTo(gx, cy - 13); ctx.lineTo(gx - side * 7, cy - 13);
+    ctx.moveTo(gx, cy + 13); ctx.lineTo(gx - side * 7, cy + 13);
+    ctx.stroke();
+  }
+  /* الكورة */
+  const bx = m.ball.x, by = m.ball.y - Math.abs(Math.sin(t * 6)) * 2.2;
+  ctx.fillStyle = 'rgba(30,24,16,.28)';
+  ctx.beginPath(); ctx.ellipse(m.ball.x, m.ball.y + 3, 3.4, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f6f2e6';
+  ctx.beginPath(); ctx.arc(bx, by, 3.1, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,50,30,.5)'; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.fillStyle = '#33302a';
+  ctx.beginPath(); ctx.arc(bx - 0.8, by - 0.8, 1, 0, Math.PI * 2); ctx.fill();
+  /* النتيجة */
+  ctx.font = '700 7px Cairo, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(20,14,8,.62)';
+  const label = `${ar(m.scoreA)} – ${ar(m.scoreB)}`;
+  const w = ctx.measureText(label).width + 10;
+  rr(a.x + a.w / 2 - w / 2, a.y - 13, w, 11, 5); ctx.fill();
+  ctx.fillStyle = '#f4e6c4';
+  ctx.fillText(label, a.x + a.w / 2, a.y - 3);
+  ctx.restore();
+}
+
+/* شرطة: إشارة فوق الظابط + مكان الجريمة */
+function drawSafety(now, night) {
+  const t = now / 1000;
+  for (const o of sim.residents) {
+    if (!o.onDuty || o.indoors) continue;
+    const investigating = o.task && o.task.kind === 'investigate';
+    const blink = Math.sin(t * (investigating ? 12 : 4)) > 0;
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = blink ? '#4b8ed6' : '#d44a3a';
+    ctx.beginPath(); ctx.arc(o.x, o.y - 34, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = blink ? 'rgba(75,142,214,.22)' : 'rgba(212,74,58,.22)';
+    ctx.beginPath(); ctx.arc(o.x, o.y - 34, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  const fresh = (sim.incidents || []).filter(i => sim.minute - i.at < 150 && i.x);
+  for (const inc of fresh.slice(-2)) {
+    const k = (Math.sin(t * 3.4) + 1) / 2;
+    ctx.save();
+    /* دايرة بوليس بضوء أحمر/أزرق بينور */
+    ctx.globalAlpha = 0.5 + k * 0.45;
+    ctx.fillStyle = inc.solved ? '#3f6fb0' : '#d44a3a';
+    ctx.beginPath(); ctx.arc(inc.x, inc.y - 28 - k * 3, 4.6, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.28 + k * 0.22;
+    ctx.strokeStyle = inc.solved ? '#3f6fb0' : '#d44a3a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(inc.x, inc.y - 28 - k * 3, 8 + k * 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function agentFade(r) {
+  if (!r.anim) return 1;
+  const pr = clamp(r.anim.t / 1.15, 0, 1);
+  if (r.anim.dir === 'in') return clamp(1 - (pr - 0.22) / 0.28, 0, 1);
+  return clamp((pr - 0.36) / 0.26, 0, 1);
+}
+
 function drawAgent(r, now, night) {
   const t = now / 1000;
   const dim = clamp((night || 0) * 0.5, 0, 0.3);
@@ -1952,11 +2163,37 @@ function draw(now) {
 
   /* people stay readable above the night tint — counters sit in the same depth queue */
   worldTransform();
-  const renderQueue = sim.residents.map(r => ({ y: r.y, draw: () => drawAgent(r, now, night) }));
+  computeDoors();
+  const renderQueue = [];
+  for (const r of sim.residents) {
+    if (r.indoors) continue;
+    const fade = agentFade(r);
+    if (fade <= 0.02) continue;
+    renderQueue.push({ y: r.y, draw: () => {
+      const a0 = ctx.globalAlpha;
+      ctx.globalAlpha = a0 * fade;
+      drawAgent(r, now, night);
+      ctx.globalAlpha = a0;
+    } });
+  }
   for (const p of sim.places) {
     if (p.counter) renderQueue.push({ y: p.door.y + 12, draw: () => drawCounter(p, now, night) });
   }
+  /* عربيات الحارة: اللي راكنة قصاد البيوت واللي ماشية في مشوار */
+  for (const car of sim.cars) {
+    const owner = car.ownerId ? sim.getResident(car.ownerId) : null;
+    const driver = car.driverId ? sim.getResident(car.driverId) : null;
+    const moving = [owner, driver].find(p => p && !p.indoors && p.task && p.task.kind === 'ride');
+    if (moving) {
+      renderQueue.push({ y: moving.y + 1, draw: () => drawOwnedCar(moving.x, moving.y, Math.cos(moving.dir || 0) < 0 ? -1 : 1, car, night) });
+    } else if (car.parkAt) {
+      renderQueue.push({ y: car.parkAt.y - 2, draw: () => drawOwnedCar(car.parkAt.x, car.parkAt.y, 1, car, night, true) });
+    }
+  }
+
   renderQueue.sort((a, b) => a.y - b.y).forEach(item => item.draw());
+  for (const m of sim.matches) drawMatch(m, now, night);
+  drawSafety(now, night);
   drawStateChips(now);
   drawFx(now);
 
@@ -1989,6 +2226,8 @@ const FILTERS = {
   love: e => e.kind === 'love',
   build: e => e.kind === 'build',
   event: e => ['event', 'system'].includes(e.kind),
+  crime: e => ['crime', 'police'].includes(e.kind),
+  street: e => ['ride', 'match'].includes(e.kind),
 };
 
 function logRow(e, fresh) {
@@ -2079,9 +2318,19 @@ const TASK_LABEL = {
   school: 'في المدرسة',
   play: 'بيلعب',
   wander: 'بيتمشى',
+  football: 'بيلعب كورة',
+  robbery: 'بيدور يسرق',
+  investigate: 'بيحقّق في بلاغ',
+  patrol: 'في دورية',
+  ride: 'سواق تاكسي',
+  hail: 'مستني عربية',
+  jail: 'في الحبس',
 };
 
 function actionText(r) {
+  if (r.indoors && !r.anim && r.task && r.task.kind === 'sleep') return 'نايم جوه البيت 💤';
+  if (r.anim) return r.anim.dir === 'in' ? 'بيدخل البيت… 🚪' : 'بيطلع من البيت… 🚪';
+  if (r.task && r.task.kind === 'ride' && r.task.stage === 'riding') return 'راكب عربية في مشوار 🚕';
   if (!r.task) return r.phase === 'walk' ? 'ماشي في الشارع' : 'واقف بيفكر في حاله';
   const place = sim.getPlace(r.task.placeId);
   if (r.task.kind === 'buy' && r.phase === 'act') {
@@ -2209,6 +2458,27 @@ function renderProfile(r) {
       return out;
     })()}
 
+    <div class="prof-sec">🚗 الشارع والأمن</div>
+    ${(() => {
+      const car = sim.carOf(r);
+      const ride = sim.rideOf(r);
+      let out = '';
+      out += `<div class="actrow"><span>${sim.isAsleep(r) ? '💤' : sim.isLockedUp(r) ? '🚔' : '☀'}</span><div><b>دلوقتي</b>${
+        sim.isAsleep(r) ? 'نايم جوه البيت' : sim.isLockedUp(r) ? 'محبوس في القسم لحد الصبح' : esc(actionText(r))}</div></div>`;
+      if (car) out += `<div class="actrow"><span>🚗</span><div><b>عربيته</b>${esc(car.name)} • نمرة ${esc(car.plate)}${car.company ? ' • عربية المعرض' : ''}${car.installment ? ' • بالتقسيط' : ''}</div></div>`;
+      if (r.carDebt && r.carDebt.left > 0) {
+        out += `<div class="actrow"><span>🧾</span><div><b>قسط العربية</b>فاضل ${money(r.carDebt.left)} • بيتحصّل ${money(r.carDebt.daily)} في اليوم${r.carDebt.missed ? ` • متأخر ${ar(r.carDebt.missed)} يوم` : ''}</div></div>`;
+      }
+      if (ride && ride.state !== 'done') {
+        const other = ride.driverId === r.id ? sim.getResident(ride.riderId) : sim.getResident(ride.driverId);
+        out += `<div class="actrow"><span>🚕</span><div><b>مشوار</b>${esc(other ? other.name : '—')} • ${money(ride.fare)} • ${ride.state === 'waiting' ? 'مستني' : 'في الطريق'}</div></div>`;
+      }
+      out += `<div class="actrow"><span>${(r.record || 0) > 0 ? '🚨' : '✅'}</span><div><b>السجل الجنائي</b>${
+        (r.record || 0) > 0 ? ar(r.record) + ' سابقة في القسم' : 'ملفه نضيف'}</div></div>`;
+      if (r.thief && (r.record || 0) === 0) out += `<div class="actrow"><span>🕵️</span><div><b>ملاحظة</b>فيه كلام في الحارة إنه بيدور على حاجة سهلة بالليل…</div></div>`;
+      return out;
+    })()}
+
     <div class="prof-sec">🕘 آخر اللي عمله</div>
     ${acts.length ? acts.map(e => {
       const k = KINDS[e.kind] || KINDS.system;
@@ -2320,6 +2590,10 @@ function syncHud() {
    places: card, entering, building centre
    ------------------------------------------------------------ */
 function placeIcon(p) {
+  if (p.style === 'police') return '🚓';
+  if (p.style === 'dealer') return '🚗';
+  if (p.style === 'pitch') return '⚽';
+  if (p.style === 'lot') return '🪵';
   if (p.style === 'apartment') return '🏠';
   if (p.style === 'cafe') return '☕';
   if (p.style === 'mosque') return '🕌';
@@ -2397,6 +2671,60 @@ function updatePlaceCard() {
     if (tenants.length) {
       rows.push(`<div class="pl-row"><span>الساكنين</span><b>${ar(tenants.length)}</b></div>`);
       rows.push(`<div class="pl-people">${tenants.slice(0, 10).map(t => `<span class="pl-chip" data-rid="${t.id}">${esc(t.name)}${t.child ? ' 👶' : ''}</span>`).join('')}</div>`);
+    }
+  } else if (p.id === 'dealer') {
+    $('plStatus').className = 'pl-status open';
+    $('plStatus').textContent = '🚗 معرض مفتوح — عربيات للبيع والتوصيل';
+    rows.push(`<div class="pl-row"><span>سواقين في الشيفت</span><b>${ar(sim.drivers().length)}</b></div>`);
+    rows.push(`<div class="pl-row"><span>مشاوير اتعملت</span><b>${ar(sim.stats.rides || 0)} • ${money(sim.stats.fares || 0)}</b></div>`);
+    rows.push(`<div class="pl-row"><span>عربيات في الحارة</span><b>${ar(sim.cars.length)}</b></div>`);
+    rows.push('<div class="pl-sub">عربيات المعرض</div>');
+    const downOf = (cm) => Math.round(cm.price * CAR_DOWN_RATE);
+    for (const cm of CAR_MODELS) {
+      const afford = sim.residents.filter(r => !r.child && !sim.carOf(r) && r.money >= cm.price).length;
+      const fin = sim.residents.filter(r => !r.child && !sim.carOf(r) && r.money >= downOf(cm)).length;
+      rows.push(`<div class="pl-car">
+        <div class="pl-car-id"><b>${cm.name}</b><small>${money(cm.price)} • مقدم ${money(downOf(cm))}</small></div>
+        <button class="pl-buy" data-buy="${cm.id}" ${afford ? '' : 'disabled'}>كاش</button>
+        <button class="pl-buy alt" data-buyinst="${cm.id}" ${fin ? '' : 'disabled'}>تقسيط</button>
+      </div>`);
+    }
+    const owned = sim.cars.slice(-8).reverse();
+    if (owned.length) {
+      rows.push('<div class="pl-sub">مركونة عند البيوت</div>');
+      rows.push(`<div class="pl-people">${owned.map(c => {
+        const o = sim.getResident(c.ownerId);
+        return `<span class="pl-chip" data-rid="${o ? o.id : ''}">${esc(o ? o.name.split(' ')[0] : 'المعرض')} • ${esc(c.name)} • ${esc(c.plate)}</span>`;
+      }).join('')}</div>`);
+    }
+    const rides = sim.rides.filter(r => r.state !== 'done');
+    if (rides.length) {
+      rows.push('<div class="pl-sub">مشاوير شغالة</div>');
+      for (const rd of rides.slice(0, 4)) {
+        const rr = sim.getResident(rd.riderId);
+        const dd = sim.getResident(rd.driverId);
+        rows.push(`<div class="pl-row"><span>${rr ? esc(rr.name) : '—'} → ${esc((sim.getPlace(rd.destId) || {}).name || '—')}</span><b>${dd ? esc(dd.name.split(' ')[0]) : 'مستني'} • ${money(rd.fare)}</b></div>`);
+      }
+    }
+  } else if (p.id === 'police') {
+    const cops = sim.officers();
+    const open = sim.incidents.filter(i => !i.solved);
+    $('plStatus').className = 'pl-status ' + (cops.length ? 'open' : 'closed');
+    $('plStatus').textContent = cops.length ? `🚓 القسم شغال — ${ar(cops.length)} ظابط` : '🚓 مفيش ظابط في القسم';
+    rows.push(`<div class="pl-row"><span>بلاغات مفتوحة</span><b class="${open.length ? 'bad' : 'ok'}">${ar(open.length)}</b></div>`);
+    rows.push(`<div class="pl-row"><span>اتقبض عليهم</span><b>${ar(sim.stats.arrests || 0)}</b></div>`);
+    rows.push(`<div class="pl-row"><span>فلوس اترجعت</span><b>${money(sim.stats.recovered || 0)}</b></div>`);
+    if (cops.length) {
+      rows.push('<div class="pl-sub">الظباط</div>');
+      rows.push(`<div class="pl-people">${cops.map(c => `<span class="pl-chip" data-rid="${c.id}">${esc(c.name)}${c.onDuty ? ' 🚨' : ''}</span>`).join('')}</div>`);
+    }
+    if (open.length) {
+      rows.push('<div class="pl-sub">قضايا</div>');
+      for (const inc of open.slice(-4)) {
+        const home = inc.homeId ? sim.getPlace(inc.homeId) : null;
+        const victim = inc.victimId ? sim.getResident(inc.victimId) : null;
+        rows.push(`<div class="pl-row"><span>${inc.type === 'mugging' ? 'خطف في الشارع' : 'سرقة'} ${home ? '• ' + esc(home.name) : ''}</span><b>${victim ? esc(victim.name.split(' ')[0]) : '—'} • ${money(inc.amount || 0)}</b></div>`);
+      }
     }
   } else {
     $('plStatus').className = 'pl-status ' + (st.open ? 'open' : 'closed');
@@ -2481,6 +2809,102 @@ function ownerLabel(home) {
   return owner ? 'المالك: ' + owner.name + ' — بيحصل على الإيجار' : 'إيجار البلدية';
 }
 
+function skipToMorning() {
+  const res = sim.skipNight();
+  if (res.ok) {
+    sim.toast(`الصبح جه ☀ — ${ar(Math.round(res.skipped / 60))} ساعة عدّت`);
+    renderStreet();
+    if (placeId) updatePlaceCard();
+    return true;
+  }
+  const awake = res.awake || [];
+  if (awake.length) {
+    const names = awake.slice(0, 3).map(a => a.name.split(' ')[0]).join('، ');
+    sim.toast(`مش هينفع: ${res.reason} (${ar(awake.length)}) — ${names}`);
+  } else {
+    sim.toast(res.reason || 'مش هينفع دلوقتي');
+  }
+  setTab('street');
+  renderStreet();
+  return false;
+}
+
+function setTab(tab) {
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  const map = { log: 'logBody', people: 'peopleBody', town: 'townBody', build: 'buildBody', street: 'streetBody' };
+  Object.entries(map).forEach(([k, id]) => { const el = $(id); if (el) el.hidden = k !== tab; });
+  if (tab === 'street') renderStreet();
+  if (tab === 'build') renderBuild();
+  if (tab === 'town') renderTown();
+  if (tab === 'people') renderPeople(true);
+}
+
+function renderStreet() {
+  const box = $('streetList');
+  if (!box) return;
+  const awake = sim.awakeList();
+  const asleep = sim.residents.length - awake.length;
+  const out = [];
+
+  out.push('<div class="section-title">الليل والنوم</div>');
+  out.push(`<div class="st-card">
+    <div class="st-row"><span>نايمين دلوقتي</span><b class="${awake.length ? 'bad' : 'ok'}">${ar(asleep)} / ${ar(sim.residents.length)}</b></div>
+    <div class="st-row"><span>الساعة</span><b>${timeLabel(sim.minute)}</b></div>
+    ${awake.length
+      ? `<div class="st-note"><b>الصاحيين:</b><br>${awake.slice(0, 8).map(a => `${esc(a.name)} — ${esc(a.why)} <i>(${esc(a.where)})</i>`).join('<br>')}${awake.length > 8 ? `<br>… و${ar(awake.length - 8)} كمان` : ''}</div>`
+      : '<div class="st-note ok">كل الحارة نايمة… تقدر تطوّل لحد الصبح</div>'}
+    <button class="pl-enter" data-night="1" ${awake.length ? 'disabled' : ''}>🌙 نم لحد الصبح</button>
+  </div>`);
+
+  const rides = sim.rides.filter(r => r.state !== 'done');
+  out.push('<div class="section-title">المشاوير (تاكسي الحارة)</div>');
+  out.push(`<div class="st-row"><span>سواقين</span><b>${ar(sim.drivers().length)} • ${ar(sim.cars.length)} عربية</b></div>`);
+  out.push(`<div class="st-row"><span>مشاوير اتعملت</span><b class="ok">${ar(sim.stats.rides || 0)} • ${money(sim.stats.fares || 0)}</b></div>`);
+  if (!rides.length) out.push('<div class="st-note">مفيش مشاوير دلوقتي… الناس بتمشي على رجليها.</div>');
+  for (const rd of rides) {
+    const rider = sim.getResident(rd.riderId);
+    const driver = sim.getResident(rd.driverId);
+    const dest = sim.getPlace(rd.destId);
+    const state = rd.state === 'waiting' ? 'مستني عربية' : rd.state === 'pickup' ? 'السواق في السكة' : 'في الطريق';
+    out.push(`<div class="st-line"><b>${rider ? esc(rider.name) : '—'}</b> → ${dest ? esc(dest.name) : '—'}<span>${state} • ${driver ? esc(driver.name.split(' ')[0]) : '—'} • ${money(rd.fare)}</span></div>`);
+  }
+
+  out.push('<div class="section-title">العربيات</div>');
+  if (!sim.cars.length) out.push('<div class="st-note">مفيش عربيات في الحارة… المعرض فيه عربيات للبيع.</div>');
+  for (const car of sim.cars.slice(-10).reverse()) {
+    const owner = sim.getResident(car.ownerId);
+    out.push(`<div class="st-line"><b>${esc(car.name)}</b> • ${esc(car.plate)}<span>${owner ? esc(owner.name) : 'عربية المعرض'}${car.company ? ' • شركة' : ''}</span></div>`);
+  }
+
+  out.push('<div class="section-title">الشرطة والجرائم</div>');
+  out.push(`<div class="st-row"><span>ظباط</span><b>${ar(sim.officers().length)}</b></div>`);
+  out.push(`<div class="st-row"><span>بلاغات مفتوحة</span><b class="${sim.incidents.filter(i => !i.solved).length ? 'bad' : 'ok'}">${ar(sim.incidents.filter(i => !i.solved).length)}</b></div>`);
+  out.push(`<div class="st-row"><span>اتقبض / اترجع</span><b>${ar(sim.stats.arrests || 0)} • ${money(sim.stats.recovered || 0)}</b></div>`);
+  for (const inc of sim.incidents.slice(-5).reverse()) {
+    const home = inc.homeId ? sim.getPlace(inc.homeId) : null;
+    const thief = inc.thiefId ? sim.getResident(inc.thiefId) : null;
+    const state = inc.solved ? '✅ اتحلت' : inc.officerId ? '🚓 بيحقق' : inc.reported ? '📋 بلاغ' : '🔕 متبلّغش';
+    out.push(`<div class="st-line"><b>${inc.type === 'mugging' ? 'خطف' : 'سرقة'}</b> ${home ? '• ' + esc(home.name) : ''}<span>${money(inc.amount || 0)} • ${state}${thief ? ' • ' + esc(thief.name.split(' ')[0]) : ''}</span></div>`);
+  }
+
+  out.push('<div class="section-title">الكورة</div>');
+  if (!sim.matches.length) out.push('<div class="st-note">مفيش ماتش دلوقتي… العيال في البيت أو المدرسة.</div>');
+  for (const m of sim.matches) {
+    const where = m.placeId ? (sim.getPlace(m.placeId) || {}).name : 'شارع الحارة';
+    out.push(`<div class="st-line"><b>${esc(where)}</b> • ${ar(m.players.length)} لاعب<span>النتيجة ${ar(m.scoreA)}–${ar(m.scoreB)} • لحد ${timeLabel(m.until)}</span></div>`);
+  }
+
+  box.innerHTML = out.join('');
+}
+
+function buyCarFor(modelId, installment = false) {
+  const res = sim.playerBuyCar(modelId, null, { installment: !!installment });
+  if (!res.ok) { sim.toast('مش قادر: ' + res.reason); return; }
+  sim.toast(installment ? `${res.car.name} بالتقسيط — مقدم اتدفع 🚗` : `${res.car.name} بقت لساكن جديد 🚗`);
+  updatePlaceCard();
+  renderStreet();
+}
+
 function buildHere(lotId) {
   const res = sim.startProject(lotId, {});
   if (!res.ok) { sim.toast('مش قادر أبني: ' + res.reason); return; }
@@ -2492,10 +2916,20 @@ function buildHere(lotId) {
 /* ------------------------------------------------------------
    saving (localStorage — same shape as sim.serialize())
    ------------------------------------------------------------ */
-const SAVE_KEY = 'harat.save.v3';
+/* مفتاح الحفظ بييجي من المحرّك نفسه عشان مايتفرّقش */
+
+function removeAllSaves() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+    for (const k of LEGACY_SAVE_KEYS) localStorage.removeItem(k);
+  } catch (e) {}
+}
 
 function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+  try {
+    if (localStorage.getItem(SAVE_KEY)) return true;
+    return LEGACY_SAVE_KEYS.some(k => !!localStorage.getItem(k));
+  } catch (e) { return false; }
 }
 
 function saveGame(showToast) {
@@ -2544,14 +2978,28 @@ function applyLoadedState() {
   syncHud();
 }
 
+/* مفاتيح الحفظ القديمة — بنقرا منها ونطوّرها لآخر نسخة */
+const LEGACY_SAVE_KEYS = ['harat.save.v3', 'harat.save.v2'];
+
 function loadGame() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    let raw = localStorage.getItem(SAVE_KEY);
+    let migrated = false;
+    if (!raw) {
+      for (const k of LEGACY_SAVE_KEYS) {
+        raw = localStorage.getItem(k);
+        if (raw) { migrated = true; break; }
+      }
+    }
     if (!raw) return false;
     const data = JSON.parse(raw);
     const res = sim.hydrate(data);
-    if (!res.ok) { sim.toast('مش قادر أفتح الحفظ: ' + res.reason); return false; }
+    if (!res.ok) {
+      if (!hasSave()) sim.toast('مش قادر أفتح الحفظ: ' + res.reason);
+      return false;
+    }
     applyLoadedState();
+    if (migrated) { saveGame(); sim.toast('الحفظ القديم اتطوّر لآخر نسخة 💾'); }
     return true;
   } catch (e) {
     return false;
@@ -2592,7 +3040,7 @@ function hitInterior(mx, my) {
    ------------------------------------------------------------ */
 $('startBtn').addEventListener('click', () => {
   $('intro').hidden = true;
-  try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
+  removeAllSaves();
   sim.summonTown();
   const now = performance.now();
   sim.places.forEach((p, i) => { p.appear = now + i * 42; });
@@ -2639,7 +3087,7 @@ $('resetBtn').addEventListener('click', () => {
 });
 
 function resetGame() {
-  try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
+  removeAllSaves();
   sim.reset();
   insideId = null;
   sim.insideId = null;
@@ -2719,10 +3167,7 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
     document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b === btn));
-    $('logBody').hidden = tab !== 'log';
-    $('peopleBody').hidden = tab !== 'people';
-    $('townBody').hidden = tab !== 'town';
-    $('buildBody').hidden = tab !== 'build';
+    setTab(tab);
     $('filters').style.display = tab === 'log' ? 'flex' : 'none';
     if (tab === 'build') renderBuild();
     if (tab === 'people') renderPeople(true);
@@ -2856,6 +3301,15 @@ $('resumeBtn').addEventListener('click', () => {
 
 $('exitBtn').addEventListener('click', () => exitPlace());
 
+const nightBtn = $('nightBtn');
+if (nightBtn) nightBtn.addEventListener('click', () => skipToMorning());
+const streetBody = $('streetBody');
+if (streetBody) streetBody.addEventListener('click', e => {
+  if (e.target.closest('[data-night]')) skipToMorning();
+  const chip = e.target.closest('[data-rid]');
+  if (chip && chip.dataset.rid) { const r = sim.getResident(Number(chip.dataset.rid)); if (r) { select(r.id); openProfile(r.id); } }
+});
+
 $('plClose').addEventListener('click', () => selectPlace(null));
 $('plEnter').addEventListener('click', () => {
   if (placeId) enterPlace(placeId);
@@ -2864,6 +3318,10 @@ $('plEnter').addEventListener('click', () => {
 $('placeCard').addEventListener('click', e => {
   const buildBtn = e.target.closest('[data-build]');
   if (buildBtn) { buildHere(buildBtn.dataset.build); return; }
+  const buyBtn = e.target.closest('[data-buy]');
+  if (buyBtn) { buyCarFor(buyBtn.dataset.buy, false); return; }
+  const instBtn = e.target.closest('[data-buyinst]');
+  if (instBtn) { buyCarFor(instBtn.dataset.buyinst, true); return; }
   const chip = e.target.closest('[data-rid]');
   if (chip) { const r = sim.getResident(Number(chip.dataset.rid)); if (r) { select(r.id); openProfile(r.id); } }
 });
@@ -2909,6 +3367,13 @@ function frame(now) {
     lastTown = now;
     if (!$('townBody').hidden) renderTown();
     if (!$('buildBody').hidden) renderBuild();
+    if (!$('streetBody').hidden) renderStreet();
+    if (nightBtn) {
+      const awakeNow = sim.residents.length ? sim.awakeList().length : 0;
+      const allAsleep = sim.residents.length > 0 && awakeNow === 0;
+      nightBtn.textContent = allAsleep ? '🌙 نم لحد الصبح' : `🌙 ${ar(sim.residents.length - awakeNow)}/${ar(sim.residents.length)} نايمين`;
+      nightBtn.classList.toggle('ready', allAsleep);
+    }
     if (placeId) updatePlaceCard();
   }
   if (insideId) {
@@ -2925,4 +3390,4 @@ syncHud();
 requestAnimationFrame(frame);
 
 /* handy for debugging in the console */
-window.__harat = { sim, cam, select, openProfile, selectPlace, enterPlace, exitPlace, buildHere, renderBuild, saveGame, loadGame, updatePlaceCard };
+window.__harat = { sim, cam, select, openProfile, selectPlace, enterPlace, exitPlace, buildHere, renderBuild, saveGame, loadGame, updatePlaceCard, setTab, renderStreet, skipToMorning, buyCarFor };

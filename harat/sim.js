@@ -54,6 +54,10 @@ export const KINDS = {
   talk: { icon: '💬', label: 'كلام', color: '#3f8f8a' },
   love: { icon: '❤️', label: 'حب وزواج', color: '#c25b7c' },
   build: { icon: '🏗️', label: 'بناء', color: '#8a7a4a' },
+  crime: { icon: '🚨', label: 'جرائم', color: '#a33b31' },
+  police: { icon: '🚓', label: 'شرطة', color: '#3a6ea5' },
+  ride: { icon: '🚕', label: 'مشاوير', color: '#b0892a' },
+  match: { icon: '⚽', label: 'كورة', color: '#4a8a4a' },
 };
 
 /* ------------------------------------------------------------
@@ -119,12 +123,27 @@ export const PLACE_DEFS = [
   { id: 'lot1', name: 'أرض فاضية', style: 'lot', kind: 'land', x: 80, y: 795, w: 150, h: 105, color: '#cbb083' },
   { id: 'lot2', name: 'أرض فاضية', style: 'lot', kind: 'land', x: 250, y: 795, w: 150, h: 105, color: '#cbb083' },
   { id: 'lot3', name: 'أرض فاضية', style: 'lot', kind: 'land', x: 700, y: 795, w: 150, h: 105, color: '#cbb083' },
-  { id: 'lot4', name: 'أرض فاضية', style: 'lot', kind: 'land', x: 880, y: 795, w: 150, h: 105, color: '#cbb083' },
-  { id: 'lot5', name: 'أرض فاضية', style: 'lot', kind: 'land', x: 1060, y: 795, w: 140, h: 105, color: '#cbb083' },
+  /* ---- قسم الشرطة ومعرض العربيات في آخر الحارة ---- */
+  { id: 'dealer', name: 'معرض عربيات النور', style: 'dealer', kind: 'work', x: 880, y: 795, w: 150, h: 105, color: '#c8d2dd',
+    jobs: [{ title: 'سواق', wage: 70, start: 7 * 60, end: 23 * 60 }, { title: 'بياع عربيات', wage: 205, start: 9 * 60, end: 21 * 60 }] },
+  { id: 'police', name: 'قسم شرطة الحارة', style: 'police', kind: 'work', x: 1058, y: 795, w: 142, h: 105, color: '#cfd9e4',
+    jobs: [{ title: 'شرطي', wage: 195, start: 8 * 60, end: 23 * 60 }] },
 ];
 
 export const BUILD_COST = 1400;
 export const BUILD_HOURS = [7, 19];
+/* ---- عربيات المعرض ---- */
+export const CAR_DOWN_RATE = 0.35;      /* مقدم التقسيط */
+export const CAR_INSTALL_MONTHS = 8;    /* مدة التقسيط */
+
+export const CAR_MODELS = [
+  { id: '128', name: 'فيات ١٢٨', price: 4800, colors: ['#e8e0cd', '#c94f43', '#7f9bb0', '#d9b25a'], speed: 1.7 },
+  { id: 'tuktuk', name: 'توك توك', price: 2600, colors: ['#2f8a7e', '#c94f43', '#3f6ab0'], speed: 1.35 },
+  { id: 'verna', name: 'هيونداي فيرنا', price: 9200, colors: ['#b9c3cc', '#2f3a46', '#8f5a3a', '#d7d2c4'], speed: 2.2 },
+  { id: 'pickup', name: 'شيفروليه بيك أب', price: 7600, colors: ['#d8d2c2', '#6b7a58', '#8a6a4a'], speed: 1.9 },
+  { id: 'tuktuk_used', name: 'توك توك مستعمل', price: 1450, colors: ['#3f6ab0', '#c9a24a', '#7a8a5a'], speed: 1.25 },
+];
+
 /* أماكن الجلوس جوه المحل والبيت (نِسب من حجم الأوضة) */
 const EAT_SEATS = [
   { x: 0.705, y: 0.67 }, { x: 0.775, y: 0.67 },
@@ -134,8 +153,9 @@ const HOME_SEATS = [
   { x: 0.40, y: 0.78 }, { x: 0.50, y: 0.78 },
   { x: 0.60, y: 0.78 }, { x: 0.86, y: 0.78 },
 ];
-export const SAVE_VERSION = 3;
-export const SAVE_KEY = 'harat.save.v3';
+export const SAVE_VERSION = 4;
+export const SAVE_KEY = 'harat.save.v4';
+export const SAVE_VERSION_LEGACY = [3];   /* بنقبل الحفظ القديم ونطوّره */
 
 const PRODUCTS = {
   baqala: [{ name: 'سكر وشاي', price: 22, icon: '🧺' }, { name: 'جبنة وبيض', price: 26, icon: '🥚' }, { name: 'رز ومكرونة', price: 18, icon: '🍚' }],
@@ -459,6 +479,26 @@ export class Sim {
     this.nextPid = 1;
     this.buildQueue = [];
     this.savedAt = 0;
+    /* عربيات، مشاوير، جرائم، كورة */
+    this.cars = [];
+    this.nextCarId = 1;
+    this.rides = [];
+    this.nextRideId = 1;
+    this.incidents = [];
+    this.nextIncId = 1;
+    this.matches = [];
+    this.nextMatchId = 1;
+    this.trafficClock = 7 * 60;
+    this.streetGameIn = 80;
+    this.stats.skips = 0;
+    this.stats.thefts = 0;
+    this.stats.arrests = 0;
+    this.stats.recovered = 0;
+    this.stats.rides = 0;
+    this.stats.fares = 0;
+    this.stats.goals = 0;
+    this.stats.carsSold = 0;
+    this.stats.matches = 0;
   }
 
   /* ---------- helpers ---------- */
@@ -691,7 +731,23 @@ export class Sim {
     this.addLog('system', 'استدعيت حارة صغيرة في قلب مصر… الشوارع اتفترشت، والناس جاهزة تعيش.');
     this.addLog('system', 'انت الخالق هنا: مش بتلعب، انت بتتفرج على حياتهم.');
     for (let i = 0; i < 6; i++) this.spawnResident();
+    this.ensurePublicJobs();
+    this.seedFamilies(2);
     this.addLog('event', 'الحارة صحيت… في ناس بتفتح المحلات، وواحد بيجري ورا التوك توك، وست بتنده على عيالها.');
+  }
+
+  /* بيوت جاهزة من أول يوم — عشان الحارة تبقى فيها عيال وكورة */
+  seedFamilies(count = 2) {
+    for (let n = 0; n < count; n++) {
+      const men = this.residents.filter(r => !r.child && !r.spouseId && r.gender === 'm');
+      const women = this.residents.filter(r => !r.child && !r.spouseId && r.gender === 'f');
+      if (!men.length || !women.length) break;
+      const res = this.marry(pick(men), pick(women));
+      if (!res.ok) break;
+      const h = res.household;
+      let kids = this.makeChild(this.getResident(h.members[0]), this.getResident(h.members[1]), h);
+      if (kids && chance(0.55)) this.makeChild(this.getResident(h.members[0]), this.getResident(h.members[1]), h);
+    }
   }
 
   spawnResident(opts = {}) {
@@ -801,6 +857,23 @@ export class Sim {
       carry: null,
       serveAt: -999,
       lastLine: '',
+      /* ليل ونوم، دخول البيوت */
+      indoors: false,
+      anim: null,
+      stuck: 0,
+      repaths: 0,
+      lastX: 0,
+      lastY: 0,
+      /* جرائم وشرطة */
+      thief: !opts.child && chance(0.16),
+      record: 0,
+      arrestedUntil: 0,
+      onDuty: false,
+      /* عربيات ومشاوير */
+      carId: null,
+      rideId: null,
+      matchId: null,
+      shiftFare: 0,
     };
 
     /* start out as strangers who recognise each other */
@@ -816,7 +889,11 @@ export class Sim {
     const slots = this.availableJobs();
     if (slots.length) {
       const foodSlots = slots.filter(sl => this.foodPlace(sl.place));
-      const slot = pick(foodSlots.length && chance(0.72) ? foodSlots : slots);
+      const pubSlots = slots.filter(sl => ['police', 'dealer'].includes(sl.place.id) &&
+        (sl.job.title === 'شرطي' ? this.officers().length < 1 : this.drivers().length < 1));
+      let slot;
+      if (pubSlots.length && chance(0.45)) slot = pick(pubSlots);
+      else slot = pick(foodSlots.length && chance(0.72) ? foodSlots : slots);
       this.hire(r, slot);
     }
 
@@ -824,6 +901,38 @@ export class Sim {
     this.addLog('system', `وصل ساكن جديد للحارة: ${r.name} (${ar(r.age)} سنة) — سكن في ${home.name} شقة ${ar(flatNo)}، و${jobTxt}.`, r);
     this.think(r, pick(['حارة جديدة… ربنا يسهّل.', 'الشقة صغيرة، بس دي بداية.', 'أول مرة أسكن في حارة زي دي… يارب تعجبني.']));
     return r;
+  }
+
+  /* وظايف لازم تكون مشغولة: شرطي في القسم، وسواق في المعرض */
+  ensurePublicJobs() {
+    const station = this.policeStation();
+    if (station && station.jobs && this.officers().length < 1) {
+      const idx = station.jobs.findIndex(j => !j.takenBy);
+      if (idx >= 0) {
+        const cand = this.residents.find(r => !r.child && !this.isLockedUp(r));
+        if (cand) this.hire(cand, { place: station, job: station.jobs[idx], index: idx });
+      }
+    }
+    const dealer = this.dealership();
+    if (dealer && dealer.jobs && this.residents.length >= 10 && this.drivers().length < 1) {
+      const idx = dealer.jobs.findIndex(j => !j.takenBy && j.title === 'سواق');
+      if (idx >= 0) {
+        let cand = this.residents.find(r => !r.child && !this.isLockedUp(r) && !r.jobTitle);
+        if (!cand) {
+          /* مفيش حد فاضي: ناخد واحد بيسوق أصلًا أو واحد دخله ضعيف */
+          const poors = this.residents.filter(r => !r.child && !this.isLockedUp(r) && r.money < 320 &&
+            r.workplaceId !== 'police' && !this.carOf(r));
+          if (poors.length) {
+            poors.sort((a, b) => a.money - b.money);
+            cand = poors[0];
+            const old = cand.jobTitle;
+            this.addLog('work', `${cand.name} ساب شغل ${old || 'اليومية'} واشتغل سواق في ${dealer.name} — المعرض وفّرله عربية.`, cand);
+            cand.jobTitle = null; cand.workplaceId = null; cand.jobIndex = -1;
+          }
+        }
+        if (cand) this.hire(cand, { place: dealer, job: dealer.jobs[idx], index: idx });
+      }
+    }
   }
 
   hire(r, slot) {
@@ -835,6 +944,7 @@ export class Sim {
       r.look.apron = pick(APRONS);
     }
     this.stats.hires++;
+    if (slot.job.title === 'سواق') this.assignCompanyCar(r);
     this.addLog('work', `اتعيّن ${r.jobTitle} في ${slot.place.name}.`, r);
   }
 
@@ -1099,7 +1209,13 @@ export class Sim {
 
   marry(a, b) {
     if (!a || !b || a.spouseId || b.spouseId) return { ok: false, reason: 'مفيش' };
-    const home = this.pickHomeForCouple(a, b);
+    let home = this.pickHomeForCouple(a, b);
+    let doubled = false;
+    if (!home) {
+      /* مفيش شقة فاضية؟ العروسين يسكنوا مع الأهل في نفس البيت */
+      home = [this.getPlace(a.homeId), this.getPlace(b.homeId)].find(p => p && p.kind === 'home') || null;
+      doubled = !!home;
+    }
     if (!home) return { ok: false, reason: 'مفيش شقة فاضية' };
     const hid = this.nextHid++;
     const members = [a.id, b.id];
@@ -1123,7 +1239,9 @@ export class Sim {
     a.rel[b.id].aff = b.rel[a.id].aff = 100;
     a.rel[b.id].friends = b.rel[a.id].friends = 2;
     this.stats.weddings = (this.stats.weddings || 0) + 1;
-    this.addLog('love', `${a.name} و${b.name} اتجوزوا! 🎉 كتب كتاب وفرح في الحارة، وسكنوا في ${home.name} شقة ${ar(this.households.filter(h => h.homeId === home.id).length)}.`, a);
+    this.addLog('love', doubled
+      ? `${a.name} و${b.name} اتجوزوا! 🎉 مفيش شقة فاضية، فسكنوا مع الأهل في ${home.name}.`
+      : `${a.name} و${b.name} اتجوزوا! 🎉 كتب كتاب وفرح في الحارة، وسكنوا في ${home.name} شقة ${ar(this.households.filter(h => h.homeId === home.id).length)}.`, a);
     for (const r of this.residents) r.mood = clamp(r.mood + 4, 0, 100);
     this.fx && this.fx('wedding', home.door.x, home.door.y - 20, '🎉');
     return { ok: true, household, home };
@@ -1160,7 +1278,11 @@ export class Sim {
   tryChildren() {
     const kids = this.residents.filter(r => r.child).length;
     if (kids >= KIDS_CAP) return false;
-    const homes = this.households.filter(h => h.members.length === 2 && h.kids.length < 3);
+    /* بيت فيه جوزين (ممكن ساكنين مع الأهل) لسه ممكن يخلفوا */
+    const homes = this.households.filter(h => h.members.filter(id => {
+      const m = this.getResident(id);
+      return m && !m.child;
+    }).length >= 2 && h.kids.length < 3);
     for (const h of homes) {
       const a = this.getResident(h.members[0]);
       const b = this.getResident(h.members[1]);
@@ -1178,6 +1300,7 @@ export class Sim {
   }
 
   makeChild(a, b, household) {
+    if (!household || !a || !b) return null;
     const home = this.getPlace(household.homeId);
     const mother = a.gender === 'f' ? a : b;
     const father = a.gender === 'f' ? b : a;
@@ -1291,6 +1414,17 @@ export class Sim {
         meal: { name: 'أكل البيت', cost: 0, hunger: 34 },
         silent: true,
       });
+    }
+    /* كورة: الملعب أو الشارع بعد المدرسة */
+    if (t >= 14 * 60 + 30 && t < 20 * 60 && chance(0.62)) {
+      const pitch = this.getPlace('pitch');
+      if (pitch) {
+        return this.goToPlace(r, pitch, 'play', {
+          duration: rndInt(50, 95),
+          thought: pick(['يلا نلعب كورة في الملعب!', 'أصحابي مستنيين في الملعب.', 'النهاردة هنكسب.'],),
+          silent: true,
+        });
+      }
     }
     if (chance(0.45)) {
       const fun = this.places.find(p => p.style === 'youth') || this.places.find(p => p.style === 'pitch');
@@ -1505,6 +1639,19 @@ export class Sim {
     }
     r.until = this.minute + duration;
 
+    /* سرقة: التنفيذ لحظة الوصول للبيت/الشخص */
+    if (task.kind === 'robbery' && place) {
+      let ok = false;
+      if (task.person && task.victimId) ok = this.commitMugging(r, this.getResident(task.victimId));
+      else ok = this.commitRobbery(r, place);
+      if (this.isLockedUp(r)) return;
+      r.task = null;
+      r.phase = 'idle';
+      r.until = null;
+      if (ok) this.think(r, pick(['الفلوس في جيبي… يلا أجري.', 'محدش شاف حاجة… الحمد لله.', 'لو فضلت كده، هلبس في يوم.']));
+      return;
+    }
+
     if (task.kind === 'buy' && place) {
       r.until = null;
       task.stage = 'queue';
@@ -1569,6 +1716,10 @@ export class Sim {
     if (task.kind === 'social' && place && chance(0.5)) {
       this.addLog('social', pickLine(r, socialLines(place)), r);
     }
+    if (task.kind === 'play' && place && place.style === 'pitch') {
+      const m = this.joinMatch(r);
+      if (m) return;
+    }
     if (task.kind === 'family' && chance(0.7)) {
       this.addLog('home', pickLine(r, [
         'رجع البيت وقعد مع عياله على العشاء.',
@@ -1579,11 +1730,23 @@ export class Sim {
     }
     if (task.kind === 'bills') this.addLog('money', 'واقف يدفع فاتورة النور والمايه.', r);
     if (task.kind === 'rent') this.addLog('money', 'واقف يدفع إيجار الشقة.', r);
+
+    /* الدخول جوه البيت: يفتح الباب، يعدّي، يختفي، والباب يتقفل وراه */
+    if (place && place.kind === 'home' && !r.indoors &&
+        ['sleep', 'family', 'eat', 'bills', 'rent'].includes(task.kind)) {
+      r.x = place.door.x + r.jitter.x * 0.25;
+      r.y = place.door.y;
+      r.path = [];
+      r.phase = 'enter';
+      r.anim = { dir: 'in', t: 0, placeId: place.id };
+      r.until = this.minute + (task.duration || 30);
+    }
   }
 
   finish(r) {
     const task = r.task;
     const place = task ? this.getPlace(task.placeId) : null;
+    const wasInside = r.indoors;
     r.task = null;
     r.phase = 'idle';
     r.until = null;
@@ -1761,28 +1924,95 @@ export class Sim {
       case 'play': r.mood = clamp(r.mood + 8, 0, 100); r.energy = clamp(r.energy - 5, 0, 100); break;
       case 'wander': break;
       case 'jobSearch': break;
+      case 'football': {
+        if (r.matchId) {
+          const m = this.matches.find(x => x.id === r.matchId);
+          if (m) m.until = Math.min(m.until, this.minute);
+          r.matchId = null;
+        }
+        break;
+      }
+      case 'investigate': {
+        const inc = this.incidents.find(i => i.id === task.incidentId);
+        if (inc && !inc.solved) this.resolveIncident(inc, r);
+        r.onDuty = true;
+        break;
+      }
+      case 'jail': {
+        r.arrestedUntil = 0;
+        r.indoors = false;
+        this.addLog('police', `${r.name} خرج من الحبس، ودفع الغرامة، ورجع الحارة.`, r);
+        break;
+      }
+      case 'hail': {
+        const ride = this.rides.find(x => x.id === task.rideId);
+        if (ride && ride.state === 'waiting') {
+          ride.state = 'done';
+          this.addLog('ride', `${r.name} ملّ من الانتظار ومشي على رجليه.`, r);
+        }
+        break;
+      }
+      case 'ride': break;
+      case 'patrol': break;
+      case 'robbery': break;
       default: break;
     }
     if (r.money < 0) {
       r.money = 0;
       r.mood = clamp(r.mood - 10, 0, 100);
     }
+
+    /* كان جوه البيت؟ لازم يخرج من الباب بالأنيميشن */
+    if (wasInside && r.homeId && task.placeId === r.homeId) {
+      r.phase = 'exit';
+      r.anim = { dir: 'out', t: 0, placeId: r.homeId };
+      r.until = null;
+      if (place) { r.x = place.door.x; r.y = place.door.y; }
+      r.path = [];
+    }
   }
 
   /* ---------- decisions ---------- */
   decide(r) {
+    if (this.isLockedUp(r)) {
+      r.arrestedUntil = 0;
+      r.indoors = false;
+    }
     if (r.child) return this.childDecide(r);
     const t = this.t;
     const home = this.getPlace(r.homeId);
     const jobPlace = r.workplaceId ? this.getPlace(r.workplaceId) : null;
     const job = jobPlace && jobPlace.jobs && r.jobIndex >= 0 ? jobPlace.jobs[r.jobIndex] : null;
 
+    /* 0 — الجرائم: الحرامي بينزل بالليل بدل ما ينام */
+    const crimeTime = r.crimeAt ? this.minute >= r.crimeAt : this.isNightCrimeTime();
+    if (r.thief && crimeTime && !r.robbedTonight && !this.isLockedUp(r) && chance(0.8)) {
+      r.robbedTonight = true;
+      r.crimeAt = 0;
+      return chance(0.65) ? this.robHouse(r) : this.robPerson(r);
+    }
+
+    /* 0b — الشرطي بيعمل دورية في الشارع */
+    if (r.jobTitle === 'شرطي' && t >= 8 * 60 && t < 23 * 60 && chance(0.55)) {
+      return this.patrol(r);
+    }
+
+    /* 0c — مشوار بعربية بالليل بدل المشي */
+    if (t >= 19 * 60 + 30 && t < 23 * 60 && r.money > 90 && this.drivers().length && chance(0.35)) {
+      const ride = this.requestRide(r, r.homeId);
+      if (ride) return true;
+    }
+
     /* 1 — exhaustion / night */
     if (r.energy < 15) {
       return this.goToPlace(r, home, 'sleep', { duration: 240, thought: pick(T.sleep) });
     }
-    if ((t >= 22 * 60 || t < 5 * 60) && r.energy < 94) {
-      const untilMorning = Math.min(480, Math.max(160, nextAt(this.minute, 6, 30) - this.minute));
+    if ((t >= 22 * 60 + 30 || t < 5 * 60 + 30) && !this.isAsleep(r)) {
+      let untilMorning = Math.max(120, nextAt(this.minute, 6, 40) - this.minute);
+      /* الحرامي بيفضل صاحي لحد ميعاد "شغله" */
+      if (r.thief && !r.robbedTonight && r.crimeAt && r.crimeAt > this.minute) {
+        untilMorning = Math.min(untilMorning, Math.max(20, r.crimeAt - this.minute));
+      }
       return this.goToPlace(r, home, 'sleep', { duration: untilMorning, thought: pick(T.sleep), silent: true });
     }
 
@@ -1812,6 +2042,21 @@ export class Sim {
 
     /* 5 — money trouble */
     if (r.money < 55) return this.gig(r);
+
+    /* 5a — عربية من المعرض (بس لو فلوسه تكفي موديل موجود) */
+    if (!r.carId && !r.child) {
+      const affordable = CAR_MODELS.filter(m => m.price + 300 <= r.money);
+      if (affordable.length && chance(0.2)) {
+        const car = this.buyCar(r, pick(affordable).id);
+        if (car.ok) return this.wander(r);
+      }
+      /* مفيش كاش كفاية؟ المعرض بيقسّط */
+      const financeable = CAR_MODELS.filter(m => Math.round(m.price * CAR_DOWN_RATE) + 200 <= r.money);
+      if (financeable.length && r.money > 600 && chance(0.16)) {
+        const car = this.buyCar(r, pick(financeable).id, { installment: true });
+        if (car.ok) return this.wander(r);
+      }
+    }
 
     /* 5b — house errands */
     if (this.minute > r.nextShop && t >= 9 * 60 && t <= 20 * 60 + 30 && r.money > 35) {
@@ -1980,7 +2225,10 @@ export class Sim {
       const seat = this.pickSeat(list, r, HOME_SEATS);
       return { x: seat.x, y: seat.y, pose: 'eat' };
     }
-    if (t && t.kind === 'sleep') return null;
+    if (t && t.kind === 'sleep') {
+      if (place.kind === 'home') return { x: 0.86, y: 0.66, pose: 'sleep' };
+      return null;
+    }
     if (place.kind === 'home') {
       const list = this.residents.filter(x => x.homeId === place.id);
       const seat = this.pickSeat(list, r, HOME_SEATS);
@@ -2034,12 +2282,20 @@ export class Sim {
       residents: this.residents.map(cleanResident),
       households: JSON.parse(JSON.stringify(this.households)),
       projects: JSON.parse(JSON.stringify(this.projects)),
+      cars: JSON.parse(JSON.stringify(this.cars)),
+      rides: JSON.parse(JSON.stringify(this.rides.filter(r => r.state !== 'done'))),
+      incidents: JSON.parse(JSON.stringify(this.incidents.slice(-40))),
+      trafficClock: this.trafficClock,
+      nextCarId: this.nextCarId,
+      nextRideId: this.nextRideId,
+      nextIncId: this.nextIncId,
       logs: this.logs.slice(-250),
     };
   }
 
   hydrate(data) {
-    if (!data || data.v !== SAVE_VERSION) return { ok: false, reason: 'نسخة قديمة من الحفظ' };
+    const verOk = data && (data.v === SAVE_VERSION || SAVE_VERSION_LEGACY.includes(data.v));
+    if (!verOk) return { ok: false, reason: 'نسخة قديمة من الحفظ' };
     this.reset();
     this.started = true;
     this.minute = Number(data.minute) || 7 * 60;
@@ -2090,6 +2346,31 @@ export class Sim {
     });
     this.households = (data.households || []).map(h => Object.assign({ members: [], kids: [] }, h));
     this.projects = (data.projects || []).map(p => Object.assign({ progress: 0 }, p));
+    this.cars = (data.cars || []).map(c => Object.assign({ company: false, rides: 0 }, c));
+    this.nextCarId = Number(data.nextCarId) || (this.cars.reduce((m, c) => Math.max(m, c.id), 0) + 1);
+    this.rides = (data.rides || []).map(r => Object.assign({ state: 'waiting', startedAt: 0 }, r, {
+      state: r.state === 'riding' ? 'waiting' : (r.state || 'waiting'),
+      driverId: null,
+    }));
+    this.nextRideId = Number(data.nextRideId) || (this.rides.reduce((m, r) => Math.max(m, r.id), 0) + 1);
+    this.incidents = (data.incidents || []).map(i => Object.assign({ solved: false, reported: false }, i));
+    this.nextIncId = Number(data.nextIncId) || (this.incidents.reduce((m, i) => Math.max(m, i.id), 0) + 1);
+    this.trafficClock = Number(data.trafficClock) || this.minute;
+    this.matches = [];
+    this.streetGameIn = 60;
+    /* كل عربية ليها ساكنها */
+    for (const r of this.residents) {
+      r.indoors = false;
+      r.anim = null;
+      r.stuck = 0;
+      r.matchId = null;
+      r.onDuty = false;
+      r.robbedTonight = false;
+      r.crimeAt = 0;
+      if (r.carDebt && !(r.carDebt.left > 0)) r.carDebt = null;
+      if (r.carId && !this.cars.some(c => c.id === r.carId)) r.carId = null;
+      if (r.arrestedUntil && r.arrestedUntil < this.minute) r.arrestedUntil = 0;
+    }
     this.logs = data.logs || [];
     this.nav = buildNav(this.places);
     this.insideId = null;
@@ -2114,6 +2395,17 @@ export class Sim {
     for (const r of this.residents) this.updateResident(r, simDt, real);
     this.growResidents(simDt);
     this.updateProjects(simDt);
+    this.updateMatches(simDt);
+    this.updateIncidents();
+    this.updateRides();
+    /* ساعة المرور بتقف لو فيه ماتش كورة في الشارع */
+    this.trafficClock += simDt * (this.activeStreetMatch() ? 0.12 : 1);
+    /* ماتشات الشارع: العيال بتنزل تلعب في وش العربيات */
+    this.streetGameIn -= simDt;
+    if (this.streetGameIn <= 0) {
+      this.streetGameIn = rndInt(60, 150);
+      this.maybeStreetMatch();
+    }
   }
 
   updateResident(r, simDt, real) {
@@ -2132,7 +2424,7 @@ export class Sim {
     if (r.hunger > 85 || r.energy < 12) r.mood = clamp(r.mood - simDt * 0.02, 0, 100);
 
     /* short strolls inside a shop (stove ↔ counter) */
-    if (r.micro) {
+    if (r.micro && !r.anim && !r.indoors) {
       const dx = r.micro.x - r.x, dy = r.micro.y - r.y;
       const dist = Math.hypot(dx, dy);
       const stepLen = 46 * this.speed * real;
@@ -2145,11 +2437,24 @@ export class Sim {
       }
     }
 
-    /* walking */
-    if (r.phase === 'walk') {
-      const speed = WALK_PX_PER_SEC * this.speed;
+    /* دخول/خروج البيوت: الباب بيتفتح، الشخص بيعدّي ويختفي، والباب بيتقفل */
+    if (r.anim) {
+      r.anim.t += real;
+      const half = 0.55;
+      if (r.anim.dir === 'in') {
+        if (r.anim.t >= half && !r.indoors) r.indoors = true;
+        if (r.anim.t >= 1.15) { r.anim = null; r.phase = 'act'; }
+      } else {
+        if (r.anim.t >= half && r.indoors) r.indoors = false;
+        if (r.anim.t >= 1.15) { r.anim = null; r.phase = 'idle'; r.until = null; }
+      }
+      r.dir = r.dir || 0;
+    } else if (r.phase === 'walk') {
+      const isRide = r.task && r.task.kind === 'ride';
+      const speed = WALK_PX_PER_SEC * (isRide ? 2.3 : 1) * this.speed;
       let dist = speed * real;
       let guard = 0;
+      const fromX = r.x, fromY = r.y;
       while (dist > 0 && r.path.length && guard++ < 50) {
         const tgt = r.path[0];
         const dx = tgt.x - r.x, dy = tgt.y - r.y;
@@ -2164,7 +2469,15 @@ export class Sim {
           dist = 0;
         }
       }
-      if (!r.path.length) this.arrive(r);
+      if (!r.path.length) {
+        r.stuck = 0;
+        this.arrive(r);
+      } else {
+        /* لو واقف مكانه (زحمة/طريق مقفول) نصلّح الطريق بدل ما يتعلّق */
+        if (Math.hypot(r.x - fromX, r.y - fromY) < 0.4) r.stuck = (r.stuck || 0) + simDt;
+        else { r.stuck = 0; if (r.repaths && r.repaths > 0) r.repaths = 0; }
+        if (r.stuck > 7) this.recoverWalk(r);
+      }
     } else {
       r.dir = r.dir || 0;
     }
@@ -2241,6 +2554,37 @@ export class Sim {
       }
     }
 
+    /* أقساط العربيات — المعرض بيحصّل كل يوم */
+    for (const r of this.residents) {
+      const d = r.carDebt;
+      if (!d || d.left <= 0) continue;
+      if (this.day < d.nextDay) continue;
+      const pay = Math.min(d.left, d.daily);
+      if (r.money >= pay) {
+        r.money -= pay;
+        r.stats.spent += pay;
+        this.stats.spent += pay;
+        d.left -= pay;
+        d.nextDay = this.day + 1;
+        d.missed = 0;
+        if (d.left <= 0) {
+          const car = this.cars.find(c => c.id === d.carId);
+          r.carDebt = null;
+          if (car) car.installment = null;
+          this.addLog('money', `${r.name} خلّص آخر قسط في ${car ? car.name : 'عربيته'} — العربية بقت خالصة.`, r);
+          this.think(r, 'الحمد لله… العربية بقت بتاعتي من غير دين.');
+        }
+      } else {
+        d.missed = (d.missed || 0) + 1;
+        d.nextDay = this.day + 1;
+        r.mood = clamp(r.mood - 4, 0, 100);
+        if (d.missed === 2) {
+          this.addLog('money', `${r.name} اتأخر في قسط العربية — المعرض بيكلمه كل يوم.`, r);
+        }
+        if (d.missed >= 5 && chance(0.4)) this.think(r, 'قسط العربية… لو ما دبرتش فلوس، المعرض هياخدها.');
+      }
+    }
+
     /* small daily household spending keeps the economy honest */
     for (const r of this.residents) {
       const spend = rndInt(10, 34);
@@ -2253,7 +2597,33 @@ export class Sim {
     }
 
     this.validateJobs();
+    this.ensurePublicJobs();
     this.ageChildren();
+
+    /* ---- يوم جديد: الحرامية بيستنوا ليل جديد، والعربيات بتركن عند البيت ---- */
+    for (const r of this.residents) {
+      r.robbedTonight = false;
+      r.crimeAt = 0;
+      if (r.arrestedUntil && r.arrestedUntil <= this.minute) { r.arrestedUntil = 0; r.indoors = false; }
+      if (r.carId) {
+        const car = this.carOf(r);
+        if (car) { car.parkedAt = r.homeId; car.parkAt = this.parkingSpot(this.getPlace(r.homeId)); }
+      }
+    }
+    /* أقفال جديدة للبيوت اللي اتسرقت */
+    for (const home of this.places.filter(p => p.kind === 'home')) {
+      if ((home.security || 1) >= 3) continue;
+      const recent = this.incidents.some(i => i.homeId === home.id && this.day - dayNum(i.at) <= 2);
+      if (!recent) continue;
+      const tenants = this.residents.filter(r => r.homeId === home.id && r.money > 220);
+      if (!tenants.length || !chance(0.6)) continue;
+      const payer = tenants[0];
+      payer.money -= 140;
+      payer.stats.spent += 140;
+      this.stats.spent += 140;
+      home.security = clamp((home.security || 1) + 1, 1, 3);
+      this.addLog('police', `${payer.name} ركّب قفل جديد على باب ${home.name} بعد السرقة (${money(140)}).`, payer);
+    }
 
     /* love, marriage and children */
     this.tryMarriages();
@@ -2270,6 +2640,14 @@ export class Sim {
       parent.money -= amount;
       kid.money += amount;
       if (chance(0.25)) this.addLog('money', `ادّى ${kid.name} مصروف ${money(amount)}.`, parent);
+    }
+
+    /* ---- ليل الحارة: فيه حرامي بيخطط لسرقة الليلة ---- */
+    const thieves = this.residents.filter(r => r.thief && !r.child && !this.isLockedUp(r));
+    if (thieves.length && chance(0.6)) {
+      const th = pick(thieves);
+      th.robbedTonight = false;
+      th.crimeAt = this.minute + rndInt(20 * 60, 25 * 60 + 30);
     }
 
     if (this.day > this.lastEventDay && chance(0.62)) {
@@ -2369,6 +2747,730 @@ export class Sim {
     const listeners = this.residents.filter(() => chance(0.5));
     listeners.slice(0, 3).forEach(r => this.think(r, ev.react || ev.text));
     this.toast(ev.name);
+  }
+
+
+  /* ============================================================
+     الليل والنوم
+     ============================================================ */
+  isAsleep(r) {
+    return !!(r && r.indoors && r.homeId && r.task &&
+      r.task.kind === 'sleep' && r.phase === 'act' && r.task.placeId === r.homeId);
+  }
+
+  isLockedUp(r) { return r && r.arrestedUntil > this.minute; }
+
+  everyoneAsleep() {
+    return this.residents.length > 0 && this.residents.every(r => this.isAsleep(r) || this.isLockedUp(r));
+  }
+
+  whereIs(r) {
+    if (this.isLockedUp(r)) return 'في الحبس';
+    const p = r.task ? this.getPlace(r.task.placeId) : null;
+    if (!p) return 'في الشارع';
+    if (r.indoors) return `جوه ${p.name}`;
+    if (r.phase === 'walk') return `في السكة ناحية ${p.name}`;
+    return `قصاد ${p.name}`;
+  }
+
+  whyAwake(r) {
+    if (this.isLockedUp(r)) return 'محبوس';
+    if (!r.task) return 'واقف في الشارع بلا شغل';
+    if (r.phase === 'walk') return 'لسه راجع البيت';
+    const map = {
+      work: 'لسه في الشغل', buy: 'بيشتري أكل', eat: 'بياكل', social: 'قاعد مع الناس',
+      family: 'قاعد مع العيلة', gig: 'شغال يومية', ride: 'في مشوار بعربية',
+      football: 'بيلعب كورة', investigate: 'بيحقّق في حادثة', robbery: 'بيدور على حاجة يسرقها',
+      shop: 'بيشتسوق', wander: 'ماشي في الشارع', school: 'في المدرسة', play: 'بيلعب',
+      hail: 'مستني عربية تاكسي', bills: 'بيدفع فاتورة', rent: 'بيدفع إيجار',
+      jail: 'في الحبس', patrol: 'في دورية', jobSearch: 'بيدور على شغل',
+    };
+    return map[r.task.kind] || 'لسه صاحي';
+  }
+
+  awakeList() {
+    return this.residents
+      .filter(r => !this.isAsleep(r) && !this.isLockedUp(r))
+      .map(r => ({ id: r.id, name: r.name, where: this.whereIs(r), why: this.whyAwake(r) }));
+  }
+
+  /* كل الحارة نايمة؟ لو أيوة: نطوّل الوقت لحد الصبح ونصحّي الناس */
+  skipNight() {
+    if (!this.started) return { ok: false, reason: 'الحارة لسه ما اتولدتش', awake: [] };
+    const t = this.t;
+    if (t < 20 * 60 && t >= 6 * 60) {
+      return { ok: false, reason: 'مش وقت النوم — استنى بالليل', awake: this.awakeList() };
+    }
+    const awake = this.awakeList();
+    if (!this.everyoneAsleep()) {
+      return { ok: false, reason: 'فيه ناس لسه صاحية', awake };
+    }
+    const from = this.minute;
+    const target = nextAt(this.minute, 6, 40);
+    const skipped = target - from;
+    const prevDay = this.day;
+    this.minute = target;
+    this.day = dayNum(this.minute);
+    for (const r of this.residents) {
+      if (r.task && r.task.kind === 'sleep') {
+        r.energy = clamp(r.energy + skipped * 0.155, 0, 100);
+        this.finish(r);
+      }
+    }
+    this.stats.skips = (this.stats.skips || 0) + 1;
+    this.addLog('system', `طوّلت الليل لحد الصبح — ${ar(Math.round(skipped / 60))} ساعة عدّوا والناس صحيت من النوم.`);
+    if (this.day !== prevDay) this.newDay();
+    this.toast('الصبح جه… الحارة صحيت ☀');
+    return { ok: true, from, to: this.minute, skipped };
+  }
+
+  /* ---------- استرجاع من مشاكل الطريق ---------- */
+  recoverWalk(r) {
+    const task = r.task;
+    if (!task) { r.phase = 'idle'; r.path = []; return; }
+    const place = this.getPlace(task.placeId);
+    if (!place) { r.task = null; r.phase = 'idle'; r.stuck = 0; r.repaths = 0; return; }
+    if ((r.repaths || 0) < 2) {
+      r.repaths = (r.repaths || 0) + 1;
+      r.stuck = 0;
+      r.path = this.pathTo(r, { x: place.door.x + r.jitter.x, y: place.door.y + r.jitter.y });
+      this.addLog('system', `${r.name} لقى الطريق مقفول ورجع غيّر سكته ناحية ${place.name}.`, r);
+      return;
+    }
+    /* آخر حل: نوصّله لباب المكان بدل ما يفضل واقف في الشارع */
+    r.x = clamp(place.door.x + r.jitter.x, 10, WORLD.w - 10);
+    r.y = clamp(place.door.y + r.jitter.y, 10, WORLD.h - 10);
+    r.path = [];
+    r.stuck = 0;
+    r.repaths = 0;
+    this.addLog('system', `${r.name} كان تايه في الشوارع… وصل ${place.name} أخيراً.`, r);
+    this.arrive(r);
+  }
+
+  /* ============================================================
+     الكورة: kids + ملعب + شارع
+     ============================================================ */
+  streetSpots() {
+    /* كورة في نص الطريق الأفقي — العربيات بتقف تستنى */
+    return [
+      { x: 300, y: 410, w: 104, h: 44 },
+      { x: 985, y: 410, w: 104, h: 44 },
+    ];
+  }
+
+  activeStreetMatch() {
+    return this.matches.find(m => m.street && m.until > this.minute) || null;
+  }
+
+  openMatches(placeId) {
+    return this.matches.filter(m => m.until > this.minute && (!placeId || m.placeId === placeId));
+  }
+
+  startMatch(placeId) {
+    const place = placeId ? this.getPlace(placeId) : null;
+    const spot = place
+      ? { x: place.x + place.w / 2, y: place.y + place.h / 2 - 6, w: place.w - 30, h: place.h - 26 }
+      : pick(this.streetSpots());
+    if (!place && this.activeStreetMatch()) return null;
+    const pool = this.residents.filter(r => r.child && !r.matchId &&
+      (!r.task || (r.task.kind === 'play' && (!placeId || r.task.placeId === placeId))));
+    if (pool.length < 2) return null;
+    const players = pool.slice(0, Math.min(6, pool.length));
+    const m = {
+      id: this.nextMatchId++,
+      placeId: placeId || null,
+      street: !placeId,
+      area: { x: spot.x - spot.w / 2, y: spot.y - spot.h / 2, w: spot.w, h: spot.h },
+      ball: { x: spot.x, y: spot.y },
+      target: null,
+      players: players.map(p => p.id),
+      scoreA: 0, scoreB: 0,
+      startedAt: this.minute,
+      until: this.minute + rndInt(45, 85),
+      nextPass: this.minute + 1.5,
+    };
+    this.matches.push(m);
+    for (const p of players) {
+      p.matchId = m.id;
+      p.matchSide = players.indexOf(p) % 2;
+      p.task = { kind: 'football', placeId: placeId || null, duration: m.until - this.minute };
+      p.phase = 'act';
+      p.until = m.until;
+      p.path = [];
+      p.mood = clamp(p.mood + 6, 0, 100);
+      p.x = spot.x + rnd(-24, 24);
+      p.y = spot.y + rnd(-14, 14);
+    }
+    const where = place ? place.name : 'وسط الشارع';
+    this.addLog('match', `ماتش كورة بدأ ${place ? 'في' : 'في'} ${where}: ${players.map(p => p.name.split(' ')[0]).join(' و')}… يلا نشوف مين هيكسب.`, players[0]);
+    return m;
+  }
+
+  updateMatches(simDt) {
+    for (const m of this.matches.slice()) {
+      if (m.until <= this.minute) { this.finishMatch(m); continue; }
+      const a = m.area;
+      const alive = m.players.map(id => this.getResident(id)).filter(p => p && p.matchId === m.id);
+      if (alive.length < 2) { m.until = this.minute; this.finishMatch(m); continue; }
+
+      /* الكورة بتتحرك ناحية هدف، وبعدها باص لناحية تانية */
+      if (!m.target) this.pickBallTarget(m);
+      const b = m.ball;
+      const dx = m.target.x - b.x, dy = m.target.y - b.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const step = 6.4 * simDt;                       /* px per sim-minute */
+      if (d <= step) {
+        b.x = m.target.x; b.y = m.target.y;
+        if (m.target.goal) this.scoreGoal(m);
+        this.pickBallTarget(m);
+      } else {
+        b.x += (dx / d) * step;
+        b.y += (dy / d) * step;
+      }
+
+      /* اللاعبين بيجروا ورا الكورة (والحراس قريبين من الجون) */
+      alive.forEach((p, i) => {
+        const side = p.matchSide || 0;
+        const keep = (i === 0) ? 0 : 1;
+        let tx = b.x, ty = b.y;
+        if (keep === 0) {
+          tx = side ? a.x + a.w - 12 : a.x + 12;
+          ty = a.y + a.h / 2;
+        } else {
+          tx = b.x + Math.cos(i * 2.1) * 16;
+          ty = b.y + Math.sin(i * 2.1) * 11;
+        }
+        const pdx = tx - p.x, pdy = ty - p.y;
+        const pd = Math.hypot(pdx, pdy) || 1;
+        const psp = 3.4 * simDt;
+        if (pd > 3) {
+          p.x += (pdx / pd) * Math.min(psp, pd);
+          p.y += (pdy / pd) * Math.min(psp, pd);
+          p.dir = Math.atan2(pdy, pdx);
+        }
+      });
+    }
+  }
+
+  pickBallTarget(m) {
+    const a = m.area;
+    const goalSide = chance(0.5) ? -1 : 1;
+    const wantGoal = chance(0.42);
+    if (wantGoal) {
+      m.target = { x: goalSide < 0 ? a.x + 6 : a.x + a.w - 6, y: a.y + a.h / 2 + rnd(-12, 12), goal: true };
+    } else {
+      m.target = { x: a.x + 12 + Math.random() * (a.w - 24), y: a.y + 8 + Math.random() * (a.h - 16) };
+    }
+  }
+
+  scoreGoal(m) {
+    const side = m.target.x < m.area.x + m.area.w / 2 ? 'B' : 'A';
+    if (side === 'A') m.scoreA++; else m.scoreB++;
+    m.nextPass = this.minute + 2;
+    this.stats.goals = (this.stats.goals || 0) + 1;
+    const scorer = this.getResident(pick(m.players));
+    this.fx('goal', m.ball.x, m.ball.y, '⚽ جـون!');
+    if (scorer) this.think(scorer, pick(['جون! أنا هدف دلوقتي.', 'شوفتوا الكورة دي؟', 'يلا نعمل تاني!']));
+    if (chance(0.65)) {
+      const p = this.getPlace(m.placeId);
+      this.addLog('match', `جووون في ${p ? p.name : 'الشارع'}! النتيجة ${ar(m.scoreA)}–${ar(m.scoreB)}.`, scorer);
+    }
+  }
+
+  finishMatch(m) {
+    m.until = this.minute - 1;
+    for (const id of m.players) {
+      const p = this.getResident(id);
+      if (!p || p.matchId !== m.id) continue;
+      p.matchId = null;
+      if (p.task && p.task.kind === 'football') { p.task = null; p.phase = 'idle'; p.until = null; }
+      p.mood = clamp(p.mood + (m.scoreA + m.scoreB > 0 ? 8 : 3), 0, 100);
+      p.energy = clamp(p.energy - 6, 0, 100);
+    }
+    this.matches = this.matches.filter(x => x.id !== m.id);
+    this.addLog('match', `خلص ماتش ${this.getPlace(m.placeId) ? this.getPlace(m.placeId).name : 'الشارع'}: ${ar(m.scoreA)}–${ar(m.scoreB)}. العيال رجعوا يجروا.`);
+  }
+
+  joinMatch(r) {
+    const open = this.openMatches().find(m => m.players.length < 6 && !m.players.includes(r.id));
+    if (!open) {
+      const started = this.startMatch(this.getPlace('pitch') ? 'pitch' : null);
+      if (!started) return null;
+      this.stats.matches = (this.stats.matches || 0) + 1;
+      return started.players.includes(r.id) ? started : null;
+    }
+    this.stats.matches = (this.stats.matches || 0) + 1;
+    open.players.push(r.id);
+    r.matchId = open.id;
+    r.matchSide = open.players.length % 2;
+    r.task = { kind: 'football', placeId: open.placeId, duration: open.until - this.minute };
+    r.phase = 'act';
+    r.until = open.until;
+    r.path = [];
+    return open;
+  }
+
+  maybeStreetMatch() {
+    const t = this.t;
+    if (t < 15 * 60 || t > 19 * 60 + 30) return null;
+    if (this.activeStreetMatch() || this.matches.length >= 2) return null;
+    const freeKids = this.residents.filter(r => r.child && !r.matchId && !r.indoors &&
+      (!r.task || ['play', 'wander', 'social', 'football'].includes(r.task.kind))).length;
+    if (freeKids < 2 || !chance(0.6)) return null;
+    const m = this.startMatch(null);
+    if (m) {
+      this.addLog('match', 'العيال نزّلوا كورة في نص الشارع… والعربيات واقفة تستنى 📣', null);
+    }
+    return m;
+  }
+
+  /* ============================================================
+     الشرطة والجرائم
+     ============================================================ */
+  policeStation() { return this.getPlace('police'); }
+  officers() { return this.residents.filter(r => r.jobTitle === 'شرطي' || r.jobTitle === 'دورية'); }
+  homeSecurity(home) { return (home && home.security) || 1; }
+  openIncidents() { return this.incidents.filter(i => !i.solved); }
+
+  isNightCrimeTime() {
+    const t = this.t;
+    return t >= 22 * 60 + 30 || t < 4 * 60 + 30;
+  }
+
+  witnessesNear(x, y, exceptId, radius = 230) {
+    return this.residents.filter(r => r.id !== exceptId && !r.indoors &&
+      Math.hypot(r.x - x, r.y - y) < radius).slice(0, 4);
+  }
+
+  robHouse(r) {
+    const homes = this.places.filter(p => p.kind === 'home' && p.id !== r.homeId &&
+      this.residents.some(o => o.homeId === p.id && o.id !== r.id && o.money > 25));
+    if (!homes.length) return this.wander(r);
+    const home = pick(homes);
+    const victims = this.residents.filter(o => o.homeId === home.id && o.id !== r.id);
+    const victim = pick(victims) || null;
+    return this.goToPlace(r, home, 'robbery', {
+      duration: 10, victimId: victim ? victim.id : null,
+      thought: pick(['الباب مفتوح… الفرصة جت.', 'أي حاجة تتحرك… لأ، الدنيا ساكتة.', 'لو الحارس صحى، أنا في داهية.']),
+      silent: true,
+    });
+  }
+
+  commitRobbery(thief, home) {
+    const victims = this.residents.filter(o => o.homeId === home.id && o.id !== thief.id && o.money > 10);
+    if (!victims.length) {
+      this.addLog('crime', `${thief.name} لف حوالين ${home.name}… مفيش حاجة تسرقها ورجع.`, thief);
+      return false;
+    }
+    const victim = pick(victims);
+    const officersNear = this.officers().some(o => Math.hypot(o.x - home.door.x, o.y - home.door.y) < 260 && o.onDuty);
+    const security = this.homeSecurity(home);
+    const busted = chance(0.03 + security * 0.05 + (officersNear ? 0.55 : 0));
+    const amount = Math.min(victim.money, rndInt(70, 240));
+    const witnesses = this.witnessesNear(home.door.x, home.door.y, thief.id, 260);
+
+    if (busted) {
+      this.raiseAlarm({ type: 'theft', homeId: home.id, thiefId: thief.id, victimId: victim.id, amount: 0, caught: true, witnesses, at: this.minute });
+      this.arrest(thief, `${thief.name} اتقبض عليه وهو بيحاول يسرق ${home.name} — الفلوس رجعت لصاحبها.`);
+      return false;
+    }
+
+    thief.money += amount;
+    thief.stats.earned += amount;
+    victim.money -= amount;
+    victim.mood = clamp(victim.mood - 18, 0, 100);
+    victim.hunger = clamp(victim.hunger + 4, 0, 100);
+    home.security = clamp(security, 1, 3);
+    const inc = this.raiseAlarm({
+      type: 'theft', homeId: home.id, thiefId: thief.id, victimId: victim.id,
+      amount, caught: false, witnesses, at: this.minute,
+      x: home.door.x, y: home.door.y,
+    });
+    this.addLog('crime', `🚨 سرقة في ${home.name}: حد دخل على ${victim.name} وخد ${money(amount)} من الشقة.`,
+      thief);
+    this.think(victim, pick(['حاجتي اتسرقت… مين دخل البيت؟', 'الفلوس اللي كنت بجمعها… راحت.', 'لازم أبلغ القسم حالًا.']));
+    if (witnesses.length) {
+      this.addLog('police', `شهود: ${witnesses.map(w => w.name).join('، ')} شافوا حاجة غريبة حوالين ${home.name}.`, witnesses[0]);
+      inc.reported = true;
+      inc.reportedAt = this.minute;
+    }
+    return true;
+  }
+
+  robPerson(thief) {
+    const targets = this.residents.filter(o => o.id !== thief.id && !o.indoors && o.money > 60 && !this.officers().includes(o));
+    if (!targets.length) return this.wander(thief);
+    const victim = pick(targets);
+    return this.goToPlace(thief, this.getPlace(victim.task && victim.task.placeId) || this.getPlace(thief.homeId), 'robbery', {
+      duration: 6, victimId: victim.id, person: true, silent: true,
+      thought: 'الراجل ده لوحده… والشارع فاضي.',
+    });
+  }
+
+  commitMugging(thief, victim) {
+    if (!victim || victim.money < 20) return false;
+    const amount = Math.min(victim.money, rndInt(25, 90));
+    const busted = this.officers().some(o => o.onDuty && Math.hypot(o.x - thief.x, o.y - thief.y) < 190);
+    const witnesses = this.witnessesNear(thief.x, thief.y, thief.id, 200);
+    if (busted) {
+      this.raiseAlarm({ type: 'mugging', thiefId: thief.id, victimId: victim.id, amount: 0, caught: true, witnesses, at: this.minute });
+      this.arrest(thief, `${thief.name} اتقبض عليه وهو بيحاول ياخد فلوس ${victim.name} في الشارع.`);
+      return false;
+    }
+    thief.money += amount;
+    victim.money -= amount;
+    victim.mood = clamp(victim.mood - 14, 0, 100);
+    const inc = this.raiseAlarm({
+      type: 'mugging', thiefId: thief.id, victimId: victim.id, amount,
+      caught: false, witnesses, at: this.minute, x: thief.x, y: thief.y,
+    });
+    this.addLog('crime', `🚨 ${victim.name} اتحايل عليه في الشارع — حد خد منه ${money(amount)} وجري.`, victim);
+    this.think(victim, pick(['حسبي الله ونعم الوكيل…', 'الشارع بقى خطر بالليل.', 'لازم أبلغ الشرطة.']));
+    if (witnesses.length) {
+      inc.reported = true;
+      inc.reportedAt = this.minute;
+      this.addLog('police', `${witnesses[0].name} شاف اللي حصل وجري على القسم يبلّغ.`, witnesses[0]);
+    }
+    return true;
+  }
+
+  raiseAlarm(data) {
+    const inc = Object.assign({
+      id: this.nextIncId++, reported: false, reportedAt: 0, solved: false,
+      officerId: null, assignedAt: 0, cold: false, recovered: 0,
+    }, data);
+    /* الشهود كـ ids بس — السجل مايتخمش بالكامل */
+    if (Array.isArray(inc.witnesses)) {
+      inc.witnessIds = inc.witnesses.map(w => w.id);
+      delete inc.witnesses;
+    }
+    this.incidents.push(inc);
+    if (this.incidents.length > 40) this.incidents.shift();
+    if (!inc.reported) {
+      /* الضحية بتكتشف الصبح */
+      const victim = inc.victimId ? this.getResident(inc.victimId) : null;
+      inc.discoverAt = victim ? nextAt(this.minute, 7, 10) : this.minute + 30;
+    }
+    return inc;
+  }
+
+  arrest(thief, text) {
+    if (!thief) return;
+    const release = nextAt(this.minute, 8, 0);
+    thief.arrestedUntil = release;
+    thief.record = (thief.record || 0) + 1;
+    thief.task = { kind: 'jail', placeId: 'police', duration: Math.max(30, release - this.minute) };
+    thief.phase = 'act';
+    thief.indoors = true;
+    thief.until = release;
+    thief.x = this.policeStation() ? this.policeStation().door.x : thief.x;
+    thief.y = this.policeStation() ? this.policeStation().door.y : thief.y;
+    thief.mood = clamp(thief.mood - 20, 0, 100);
+    thief.path = [];
+    this.stats.arrests = (this.stats.arrests || 0) + 1;
+    this.addLog('police', `🚓 ${text}`, thief);
+    this.toast('الشرطة قبضت على واحد');
+  }
+
+  dispatchOfficer(inc) {
+    const station = this.policeStation();
+    if (!station) return null;
+    const free = this.officers().filter(o => !this.isLockedUp(o) && (!o.task || o.task.kind !== 'investigate'));
+    if (!free.length) return null;
+    free.sort((a, b) => Math.hypot(a.x - station.door.x, a.y - station.door.y) - Math.hypot(b.x - station.door.x, b.y - station.door.y));
+    const officer = free[0];
+    const target = inc.homeId ? this.getPlace(inc.homeId) : this.getPlace('police');
+    if (!target) return null;
+    officer.onDuty = true;
+    if (officer.indoors || officer.anim) { officer.indoors = false; officer.anim = null; }
+    officer.task = { kind: 'investigate', placeId: target.id, incidentId: inc.id, duration: 18, silent: true };
+    officer.phase = 'walk';
+    officer.until = null;
+    officer.path = this.pathTo(officer, { x: target.door.x + rnd(-14, 14), y: target.door.y + rnd(4, 14) });
+    inc.officerId = officer.id;
+    inc.assignedAt = this.minute;
+    this.addLog('police', `🚓 ${officer.name} اتحرك على ${target.name} بعد بلاغ سرقة.`, officer);
+    return officer;
+  }
+
+  resolveIncident(inc, officer) {
+    if (inc.solved) return true;
+    inc.investigatedAt = this.minute;
+    const thief = inc.thiefId ? this.getResident(inc.thiefId) : null;
+    /* اتقبض عليه في اللحظة — القضية خلصت من غير دورية */
+    if (inc.caught) {
+      inc.solved = true;
+      inc.solvedAt = this.minute;
+      inc.note = 'اتقبض عليه في اللحظة';
+      if (officer) this.think(officer, 'الحالة اتقفلت قبل ما أوصل… تمام.');
+      return true;
+    }
+    const delay = this.minute - inc.at;
+    let catchChance = 0.34 + (delay < 90 ? 0.22 : 0) + (thief ? Math.min(0.2, thief.record * 0.08) : 0);
+    if (officer) catchChance += 0.12;
+    if (inc.caught) catchChance = 1;
+    if (thief && !this.isLockedUp(thief) && chance(catchChance)) {
+      const victim = inc.victimId ? this.getResident(inc.victimId) : null;
+      const back = Math.min(thief.money, inc.amount);
+      if (back > 0) {
+        thief.money -= back;
+        inc.recovered = back;
+        if (victim) {
+          victim.money += back;
+          victim.mood = clamp(victim.mood + 12, 0, 100);
+          this.think(victim, 'رجعت الفلوس… الحمد لله.');
+        }
+        if ((this.stats.recovered || 0) + back > 0) this.stats.recovered = (this.stats.recovered || 0) + back;
+        this.addLog('police', `الشرطة رجّعت ${money(back)} لـ${victim ? victim.name : 'صاحب البيت'}.`, officer);
+      }
+      inc.solved = true;
+      inc.solvedAt = this.minute;
+      this.arrest(thief, `${thief.name} اتقبض عليه في قضية ${this.getPlace(inc.homeId) ? this.getPlace(inc.homeId).name : 'سرقة'}.`);
+      return true;
+    }
+    inc.cold = true;
+    inc.solved = false;
+    this.addLog('police', `الشرطة عملت معاينة في ${this.getPlace(inc.homeId) ? this.getPlace(inc.homeId).name : 'مكان الجريمة'}… مفيش دليل واضح، القضية اتأجلت.`, officer);
+    if (officer) this.think(officer, pick(['مفيش شهود… صعب نلاقي حد.', 'الحرامي عارف يغطي آثاره.', 'لو الشارع فيه كاميرات، كنا خلصنا.']));
+    return false;
+  }
+
+  updateIncidents() {
+    for (const inc of this.incidents) {
+      if (inc.solved) continue;
+      /* ضحية مش موجودة؟ اقفل القضية بهدوء */
+      if (!inc.reported && inc.discoverAt && this.minute >= inc.discoverAt) {
+        inc.reported = true;
+        inc.reportedAt = this.minute;
+        const victim = inc.victimId ? this.getResident(inc.victimId) : null;
+        if (victim) {
+          this.addLog('police', `${victim.name} اكتشف السرقة الصبح ونزل بلّغ القسم.`, victim);
+        }
+      }
+      if (inc.reported && !inc.officerId && this.minute - inc.reportedAt < 240) {
+        this.dispatchOfficer(inc);
+      }
+      if (inc.cold && this.day - dayNum(inc.at) >= 2 && chance(0.004)) {
+        this.resolveIncident(inc, null);
+      }
+    }
+  }
+
+  patrol(r) {
+    const station = this.policeStation();
+    const spots = this.places.filter(p => ['social', 'food'].includes(p.kind));
+    const target = pick(spots) || station;
+    return this.goToPlace(r, target, 'patrol', { duration: rndInt(25, 50), silent: true });
+  }
+
+  /* ============================================================
+     العربيات والمشاوير
+     ============================================================ */
+  dealership() { return this.getPlace('dealer'); }
+  drivers() {
+    return this.residents.filter(r => r.carId && !r.child && !this.isLockedUp(r) && (!r.task || r.task.kind !== 'work' || r.jobTitle === 'سواق'));
+  }
+  carOf(r) { return r && r.carId ? this.cars.find(c => c.id === r.carId) || null : null; }
+
+  parkingSpot(home) {
+    if (!home) return { x: 120, y: 200 };
+    const n = this.cars.filter(c => c.parkAt && Math.abs(c.parkAt.y - home.door.y) < 40).length;
+    return { x: home.door.x - 46 + (n % 3) * 22, y: home.door.y + 30 };
+  }
+
+  buyCar(owner, modelId, opts = {}) {
+    const model = CAR_MODELS.find(m => m.id === modelId) || CAR_MODELS[0];
+    if (!owner) return { ok: false, reason: 'مفيش ساكن' };
+    if (this.carOf(owner)) return { ok: false, reason: 'معهوش عربية أصلاً؟ لأ، معاه واحدة' };
+    if (owner.child) return { ok: false, reason: 'الأطفال مش بيشتروا عربيات' };
+    const inst = !!opts.installment;
+    const down = inst ? Math.round(model.price * CAR_DOWN_RATE) : model.price;
+    if (owner.money < down) {
+      return { ok: false, reason: inst ? `المقدم ${money(down)} مش كفاية` : 'الفلوس مش كفاية' };
+    }
+    owner.money -= down;
+    owner.stats.spent += down;
+    this.stats.spent += down;
+    this.stats.carsSold = (this.stats.carsSold || 0) + 1;
+    const rest = model.price - down;
+    const home = this.getPlace(owner.homeId);
+    const car = {
+      id: this.nextCarId++,
+      model: model.id, name: model.name, price: model.price,
+      color: pick(model.colors),
+      ownerId: owner.id,
+      plate: `${pick(['أ', 'ب', 'ج', 'د', 'ر', 'س', 'ص'])}${rndInt(1000, 9999)}`,
+      boughtDay: this.day,
+      parkAt: this.parkingSpot(home),
+      parkedAt: home ? home.id : null,
+      company: false,
+      rides: 0,
+    };
+    car.installment = inst ? { months: CAR_INSTALL_MONTHS, down } : null;
+    this.cars.push(car);
+    owner.carId = car.id;
+    owner.mood = clamp(owner.mood + 22, 0, 100);
+    if (rest > 0) {
+      owner.carDebt = {
+        carId: car.id, total: rest, left: rest,
+        daily: Math.max(1, Math.ceil(rest / (CAR_INSTALL_MONTHS * 30))),
+        nextDay: this.day + 1, missed: 0,
+      };
+      this.addLog('money', `${owner.name} حجز ${model.name} بالتقسيط — دفع مقدم ${money(down)} وفاضل ${money(rest)} على ${ar(CAR_INSTALL_MONTHS)} شهور.`, owner);
+      this.think(owner, pick(['قسط كل شهر… بس العربية بقت تحت البيت.', 'المقدم دفعته، والباقي على ربنا.', 'كل يوم جنيه في العربية أحسن من مشي في الشمس.']));
+    } else {
+      this.addLog('money', `${owner.name} اشترى عربية ${model.name} من المعرض بـ${money(model.price)} — نمرة ${car.plate}.`, owner);
+      this.think(owner, pick(['أخيراً بقى معايا عربية…', 'أول مرة أسوق حاجة باسمي.', 'العربية دي هتوفر عليّا مشاوير كتير.']));
+    }
+    this.toast(`${owner.name.split(' ')[0]} اشترى عربية`);
+    return { ok: true, car, installment: rest > 0 };
+  }
+
+  /* الخالق بيشتري لأقدر ساكن (أو لأي ساكن مختار) */
+  playerBuyCar(modelId, residentId = null, opts = {}) {
+    const model = CAR_MODELS.find(m => m.id === modelId) || CAR_MODELS[0];
+    const need = opts.installment ? Math.round(model.price * CAR_DOWN_RATE) : model.price;
+    let owner = residentId ? this.getResident(residentId) : null;
+    if (!owner) {
+      const cands = this.residents.filter(r => !r.child && !this.carOf(r) && r.money >= need);
+      if (!cands.length) return { ok: false, reason: 'مفيش ساكن معاه فلوس كفاية' };
+      cands.sort((a, b) => b.money - a.money);
+      owner = cands[0];
+    }
+    return this.buyCar(owner, modelId, opts);
+  }
+
+  assignCompanyCar(driver) {
+    if (!driver) return null;
+    let car = this.cars.find(c => c.company && !c.driverId);
+    if (!car) {
+      const model = CAR_MODELS[1];
+      car = {
+        id: this.nextCarId++, model: model.id, name: model.name, price: model.price,
+        color: pick(model.colors), ownerId: null, plate: `ط${rndInt(1000, 9999)}`,
+        boughtDay: this.day, parkAt: null, parkedAt: 'dealer', company: true, rides: 0, driverId: null,
+      };
+      this.cars.push(car);
+    }
+    car.driverId = driver.id;
+    driver.carId = car.id;
+    return car;
+  }
+
+  requestRide(rider, destId) {
+    if (!rider || this.rideOf(rider)) return null;
+    if (!this.drivers().length) return null;
+    const dest = this.getPlace(destId) || this.getPlace(rider.homeId);
+    if (!dest) return null;
+    const fare = rndInt(16, 24) + Math.round(Math.hypot(dest.door.x - rider.x, dest.door.y - rider.y) / 12);
+    const ride = {
+      id: this.nextRideId++,
+      riderId: rider.id, driverId: null, destId: dest.id,
+      from: { x: rider.x, y: rider.y },
+      fare, state: 'waiting', at: this.minute, startedAt: 0,
+    };
+    this.rides.push(ride);
+    rider.task = { kind: 'hail', placeId: dest.id, rideId: ride.id, duration: 25, silent: true };
+    rider.phase = 'act';
+    rider.until = this.minute + 25;
+    rider.path = [];
+    this.addLog('ride', `${rider.name} طلب عربية من ${dest.name}… مستني على الرصيف.`, rider);
+    return ride;
+  }
+
+  rideOf(r) {
+    if (!r) return null;
+    return this.rides.find(x => x.riderId === r.id && x.state !== 'done') ||
+      this.rides.find(x => x.driverId === r.id && x.state !== 'done') || null;
+  }
+
+  updateRides() {
+    /* 1) ركاب مستنيين وعربيات فاضية */
+    for (const ride of this.rides) {
+      if (ride.state !== 'waiting') continue;
+      const rider = this.getResident(ride.riderId);
+      if (!rider) { ride.state = 'done'; continue; }
+      if (this.minute - ride.at > 26) {
+        ride.state = 'done';
+        this.addLog('ride', `${rider.name} زهق من الانتظار ومشي على رجليه.`, rider);
+        rider.task = null; rider.phase = 'idle'; rider.until = null;
+        continue;
+      }
+      const freeDrivers = this.drivers().filter(d => !this.rideOf(d) && !this.isLockedUp(d));
+      if (!freeDrivers.length) continue;
+      const driver = freeDrivers[0];
+      ride.driverId = driver.id;
+      ride.state = 'pickup';
+      ride.startedAt = this.minute;
+      driver.onDuty = true;
+      driver.task = { kind: 'ride', placeId: driver.workplaceId || 'dealer', rideId: ride.id, stage: 'pickup', duration: 999 };
+      driver.phase = 'walk';
+      driver.until = null;
+      driver.path = this.pathTo(driver, { x: rider.x + rnd(-8, 8), y: rider.y + 8 });
+      this.addLog('ride', `🚕 ${driver.name} خد الطلب ورايح لـ${rider.name}.`, driver);
+    }
+
+    /* 2) السواق وصل الراكب → الراكب يركب ونطلع للعنوان */
+    for (const ride of this.rides) {
+      if (ride.state !== 'pickup') continue;
+      const driver = this.getResident(ride.driverId);
+      const rider = this.getResident(ride.riderId);
+      if (!driver || !rider) { ride.state = 'done'; continue; }
+      if (Math.hypot(driver.x - rider.x, driver.y - rider.y) < 26) {
+        ride.state = 'riding';
+        driver.task.stage = 'drop';
+        const dest = this.getPlace(ride.destId);
+        driver.path = this.pathTo(driver, { x: dest.door.x + rnd(-10, 10), y: dest.door.y + rnd(6, 16) });
+        rider.task = { kind: 'ride', placeId: ride.destId, stage: 'riding', rideId: ride.id, duration: 999 };
+        rider.phase = 'act';
+        rider.until = null;
+        this.addLog('ride', `${rider.name} ركب مع ${driver.name} ورايحين ${dest.name}.`, rider);
+      }
+      if (this.minute - ride.at > 90) {
+        ride.state = 'done';
+        if (driver.task && driver.task.kind === 'ride') { driver.task = null; driver.phase = 'idle'; }
+        if (rider.task && rider.task.kind === 'hail') { rider.task = null; rider.phase = 'idle'; }
+      }
+    }
+
+    /* 3) الراكب بيقعد جوه العربية (بيتحرك مع السواق) */
+    for (const ride of this.rides) {
+      if (ride.state !== 'riding') continue;
+      const driver = this.getResident(ride.driverId);
+      const rider = this.getResident(ride.riderId);
+      if (!driver || !rider) { ride.state = 'done'; continue; }
+      rider.x = driver.x - 4;
+      rider.y = driver.y + 3;
+      const dest = this.getPlace(ride.destId);
+      if (Math.hypot(driver.x - dest.door.x, driver.y - dest.door.y) < 26) {
+        ride.state = 'done';
+        rider.x = dest.door.x + rnd(-10, 10);
+        rider.y = dest.door.y + rnd(8, 16);
+        rider.task = null;
+        rider.phase = 'idle';
+        rider.until = null;
+        driver.task = null;
+        driver.phase = 'idle';
+        driver.until = null;
+        const fare = Math.max(12, Math.round(ride.fare));
+        rider.money -= fare;
+        rider.stats.spent += fare;
+        this.stats.spent += fare;
+        const cut = Math.max(3, Math.round(fare * 0.18));
+        const earn = fare - cut;
+        driver.money += earn;
+        driver.stats.earned += earn;
+        driver.shiftFare = (driver.shiftFare || 0) + earn;
+        this.stats.earned += earn;
+        this.stats.fares = (this.stats.fares || 0) + earn;
+        this.stats.rides = (this.stats.rides || 0) + 1;
+        driver.mood = clamp(driver.mood + 3, 0, 100);
+        this.addLog('ride', `${rider.name} نزل في ${dest.name} ودفع ${money(fare)} لـ${driver.name}.`, rider);
+        this.fx('sale', dest.door.x, dest.door.y + 12, `+${money(earn)}`);
+      }
+    }
+
+    this.rides = this.rides.filter(r => r.state !== 'done' || this.minute - (r.at || 0) < 30);
   }
 
   setMod({ foodPrice = 1, energyDrain = 1, moodBias = 0, name = '', hours = 6 }) {
