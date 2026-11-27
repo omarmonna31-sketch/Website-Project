@@ -790,101 +790,327 @@ function drawPitch(p, now) {
    ------------------------------------------------------------ */
 function drawAgent(r, now, night) {
   const t = now / 1000;
-  const dim = clamp((night || 0) * 0.55, 0, 0.34);
+  const dim = clamp((night || 0) * 0.5, 0, 0.3);
+  const look = r.look || {
+    height: 1, build: 1, top: r.color, pants: '#39434f', galabeya: false,
+    hijab: r.gender === 'f', hijabColor: '#e8dcc8', hair: r.hair,
+    hairStyle: 'short', beard: false, moustache: false, glasses: false,
+    bag: null, apron: null, shoe: '#3a2f26', skinTone: r.skin,
+  };
   const walking = r.phase === 'walk';
-  const ph = t * 9 + r.id * 1.7;
+  const ph = t * 8.2 + r.id * 1.7;
   const swing = walking ? Math.sin(ph) : 0;
-  const bob = walking ? Math.abs(Math.sin(ph)) * 1.3 : Math.sin(t * 1.8 + r.id) * 0.5;
+  const bob = walking ? Math.abs(Math.sin(ph)) * 1.1 : Math.sin(t * 1.6 + r.id) * 0.32;
+  const working = !!(r.task && r.task.kind === 'work' && r.phase === 'act');
+  const seated = !!(r.task && ['social', 'family', 'eat'].includes(r.task.kind) && r.phase === 'act');
 
   const spawnK = r.spawnAt ? clamp((now - r.spawnAt) / 500, 0, 1) : 1;
   if (spawnK <= 0) return;
-  const sc = 0.6 + 0.4 * (1 - Math.pow(1 - spawnK, 2));
+  const sc = 0.55 + 0.45 * (1 - Math.pow(1 - spawnK, 2));
+  const faceLeft = Math.cos(r.dir || 0) < -0.15 ? -1 : 1;
+
+  const H = look.height, B = look.build;
+  const legLen = 9 * H;
+  const torsoLen = 11.6 * H;
+  const hipY = -legLen;
+  const shoulderY = hipY - torsoLen;
+  const headR = 4.4 * (0.95 + 0.05 * H);
+  const headY = shoulderY - headR - 0.4;
+  const skin = shade(look.skinTone || r.skin, -dim * 0.85);
 
   ctx.save();
   ctx.translate(r.x, r.y);
-  ctx.scale(sc * 1.14, sc * 1.14);
+  ctx.scale(sc * 1.18 * faceLeft, sc * 1.18 * (seated ? 0.93 : 1));
 
   /* shadow */
   ctx.fillStyle = 'rgba(68,48,24,.24)';
-  ctx.beginPath(); ctx.ellipse(0, 1.5, 8, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 1.5, 7.4, 3.2, 0, 0, Math.PI * 2); ctx.fill();
 
   if (r.id === selectedId) {
     ctx.strokeStyle = 'rgba(240,196,102,.9)';
     ctx.lineWidth = 1.8;
     ctx.setLineDash([4, 3]);
-    ctx.beginPath(); ctx.ellipse(0, 1.5, 12.5, 5.6, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 1.5, 11.5, 5.2, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
   } else if (r.id === hoverId) {
     ctx.strokeStyle = 'rgba(255,255,255,.55)';
     ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.ellipse(0, 1.5, 11, 5, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 1.5, 10.4, 4.8, 0, 0, Math.PI * 2); ctx.stroke();
   }
 
   const baseY = -bob;
+  const longRobe = look.galabeya || r.gender === 'f';
+  const legColor = shade(look.pants, -dim);
+  const top = shade(look.top, 0.1 - dim);
+  const topDark = shade(look.top, -0.16 - dim);
 
-  /* legs */
-  ctx.strokeStyle = '#463d32';
-  ctx.lineWidth = 2.3;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(-2.4, baseY - 8);
-  ctx.lineTo(-2.4 + swing * 2.6, -0.4);
-  ctx.moveTo(2.4, baseY - 8);
-  ctx.lineTo(2.4 - swing * 2.6, -0.4);
-  ctx.stroke();
-
-  /* body */
-  const bg = ctx.createLinearGradient(0, baseY - 20, 0, baseY - 6);
-  bg.addColorStop(0, shade(r.color, 0.14 - dim));
-  bg.addColorStop(1, shade(r.color, -0.12 - dim));
-  ctx.fillStyle = bg;
-  rr(-5.4, baseY - 19.5, 10.8, 12.4, 3.8); ctx.fill();
-  ctx.strokeStyle = 'rgba(45,32,18,.35)';
-  ctx.lineWidth = 0.9;
-  ctx.stroke();
-
-  /* arms */
-  ctx.strokeStyle = shade(r.color, -0.18 - dim);
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-5, baseY - 17);
-  ctx.lineTo(-5.6 - swing * 1.4, baseY - 10);
-  ctx.moveTo(5, baseY - 17);
-  ctx.lineTo(5.6 + swing * 1.4, baseY - 10);
-  ctx.stroke();
-
-  /* head */
-  ctx.fillStyle = shade(r.skin, -dim * 0.8);
-  ctx.beginPath(); ctx.arc(0, baseY - 24.5, 4.9, 0, Math.PI * 2); ctx.fill();
-
-  if (r.gender === 'f') {
-    ctx.fillStyle = shade(r.color, -0.35);
+  /* ---- shoes / legs ---- */
+  if (longRobe) {
+    /* robe skirt covers the legs; only shoes peep out */
+    ctx.strokeStyle = shade(look.shoe, -dim);
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(0, baseY - 24.5, 5.5, Math.PI * 0.98, Math.PI * 2.02);
-    ctx.lineTo(4.7, baseY - 18.5);
-    ctx.lineTo(-4.7, baseY - 18.5);
+    ctx.moveTo(-2.2, baseY - 2.4);
+    ctx.lineTo(-2.2 + swing * 1.6, baseY - 0.7);
+    ctx.moveTo(2.2, baseY - 2.4);
+    ctx.lineTo(2.2 - swing * 1.6, baseY - 0.7);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = legColor;
+    ctx.lineWidth = 2.3 * B;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-2.1, hipY);
+    ctx.lineTo(-2.1 + swing * 2.4, baseY - 1.2);
+    ctx.moveTo(2.1, hipY);
+    ctx.lineTo(2.1 - swing * 2.4, baseY - 1.2);
+    ctx.stroke();
+    /* shoes */
+    ctx.strokeStyle = shade(look.shoe, -dim);
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(-2.1 + swing * 2.4, baseY - 1);
+    ctx.lineTo(-1.4 + swing * 2.4, baseY - 0.6);
+    ctx.moveTo(2.1 - swing * 2.4, baseY - 1);
+    ctx.lineTo(1.4 - swing * 2.4, baseY - 0.6);
+    ctx.stroke();
+  }
+
+  /* ---- torso ---- */
+  const sw = 4.9 * B;
+  const bg = ctx.createLinearGradient(0, shoulderY, 0, hipY + 2);
+  bg.addColorStop(0, top);
+  bg.addColorStop(1, topDark);
+  ctx.fillStyle = bg;
+  if (longRobe) {
+    /* galabeya / abaya: narrow shoulders, wide hem */
+    ctx.beginPath();
+    ctx.moveTo(-sw + 0.5, shoulderY + 1);
+    ctx.quadraticCurveTo(0, shoulderY - 1.4, sw - 0.5, shoulderY + 1);
+    ctx.lineTo(sw + 1.6, baseY - 3);
+    ctx.quadraticCurveTo(0, baseY - 1.2, -sw - 1.6, baseY - 3);
     ctx.closePath();
     ctx.fill();
-  } else {
-    ctx.fillStyle = r.hair;
+    ctx.strokeStyle = 'rgba(45,32,18,.32)';
+    ctx.lineWidth = 0.8; ctx.stroke();
+    /* collar */
+    ctx.strokeStyle = shade(look.top, -0.3);
     ctx.beginPath();
-    ctx.arc(0, baseY - 25.4, 4.9, Math.PI * 1.02, Math.PI * 2.02);
+    ctx.moveTo(-2.2, shoulderY + 1.2);
+    ctx.lineTo(0, shoulderY + 4.2);
+    ctx.lineTo(2.2, shoulderY + 1.2);
+    ctx.stroke();
+  } else {
+    rr(-sw, shoulderY, sw * 2, torsoLen + 1.2, 3.4 * B); ctx.fill();
+    ctx.strokeStyle = 'rgba(45,32,18,.34)';
+    ctx.lineWidth = 0.8; ctx.stroke();
+    /* collar + buttons */
+    ctx.strokeStyle = shade(look.top, -0.34);
+    ctx.beginPath();
+    ctx.moveTo(-1.9, shoulderY + 0.6);
+    ctx.lineTo(0, shoulderY + 3.4);
+    ctx.lineTo(1.9, shoulderY + 0.6);
+    ctx.stroke();
+  }
+
+  /* apron for the people behind a counter */
+  if (look.apron) {
+    ctx.fillStyle = shade(look.apron, -dim * 0.6);
+    ctx.beginPath();
+    ctx.moveTo(-sw + 0.6, shoulderY + torsoLen * 0.32);
+    ctx.lineTo(sw - 0.6, shoulderY + torsoLen * 0.32);
+    ctx.lineTo(sw + 0.2, hipY + 2.6);
+    ctx.lineTo(-sw - 0.2, hipY + 2.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(70,54,34,.28)'; ctx.lineWidth = 0.7; ctx.stroke();
+  }
+
+  /* ---- arms ---- */
+  const sleeve = longRobe ? topDark : shade(look.top, -0.2 - dim);
+  ctx.strokeStyle = sleeve;
+  ctx.lineWidth = 1.9 * B;
+  ctx.lineCap = 'round';
+  const shoulderX = sw - 0.4;
+  let handL, handR;
+  if (working) {
+    /* hands out over the counter, tiny busy motion */
+    const k = Math.sin(t * 4.2 + r.id) * 0.9;
+    handL = [-shoulderX - 2.4 + k, shoulderY + 6.4];
+    handR = [shoulderX + 2.6 - k, shoulderY + 5.4];
+  } else if (seated) {
+    handL = [-shoulderX - 1.2, shoulderY + 6.8];
+    handR = [shoulderX + 1.2, shoulderY + 6.8];
+  } else {
+    handL = [-shoulderX - 1.1 - swing * 1.5, hipY + 1.4];
+    handR = [shoulderX + 1.1 + swing * 1.5, hipY + 1.4];
+  }
+  ctx.beginPath();
+  ctx.moveTo(-shoulderX, shoulderY + 1.4); ctx.lineTo(handL[0], handL[1]);
+  ctx.moveTo(shoulderX, shoulderY + 1.4); ctx.lineTo(handR[0], handR[1]);
+  ctx.stroke();
+  /* hands */
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(handL[0], handL[1], 1.05, 0, Math.PI * 2);
+  ctx.arc(handR[0], handR[1], 1.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* ---- head ---- */
+  const hx = 0;
+  const hy = headY;
+  const hairC = shade(look.hair, -dim);
+
+  if (r.gender === 'f' && !look.hijab) {
+    /* long hair behind the face */
+    ctx.fillStyle = hairC;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy + 1.6, headR + 1.3, headR + 2.6, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  /* face */
-  ctx.fillStyle = 'rgba(45,32,22,.75)';
+  ctx.fillStyle = skin;
   ctx.beginPath();
-  ctx.arc(-1.6, baseY - 24.6, 0.62, 0, Math.PI * 2);
-  ctx.arc(1.6, baseY - 24.6, 0.62, 0, Math.PI * 2);
+  ctx.arc(hx, hy, headR, 0, Math.PI * 2);
   ctx.fill();
+
+  /* ears */
+  ctx.beginPath();
+  ctx.arc(hx - headR, hy + 0.5, 0.85, 0, Math.PI * 2);
+  ctx.arc(hx + headR, hy + 0.5, 0.85, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (look.hijab) {
+    ctx.fillStyle = shade(look.hijabColor, -dim * 0.7);
+    ctx.beginPath();
+    ctx.ellipse(hx, hy + 0.2, headR + 1.15, headR + 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    /* drape over the shoulders */
+    ctx.beginPath();
+    ctx.moveTo(hx - headR - 0.6, hy + 1.6);
+    ctx.quadraticCurveTo(hx - headR - 2.2, hy + headR + 5, hx - 1.4, shoulderY + 4.4);
+    ctx.lineTo(hx + 1.4, shoulderY + 4.4);
+    ctx.quadraticCurveTo(hx + headR + 2.2, hy + headR + 5, hx + headR + 0.6, hy + 1.6);
+    ctx.closePath();
+    ctx.fill();
+    /* face opening */
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy + 0.7, headR - 0.7, headR - 0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    /* stitched edge */
+    ctx.strokeStyle = shade(look.hijabColor, -0.32);
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy + 0.2, headR + 1.15, headR + 1.5, 0, Math.PI * 0.92, Math.PI * 2.08);
+    ctx.stroke();
+  } else if (r.gender === 'm') {
+    if (look.hairStyle === 'bald') {
+      /* nothing on top */
+    } else if (look.hairStyle === 'taqiyah') {
+      ctx.fillStyle = '#f2ecdd';
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.5, headR - 0.4, Math.PI * 1.02, Math.PI * 2.02);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(140,126,102,.6)'; ctx.lineWidth = 0.6; ctx.stroke();
+    } else if (look.hairStyle === 'cap') {
+      ctx.fillStyle = shade('#2f4a6a', -dim);
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.3, headR + 0.4, Math.PI * 1.04, Math.PI * 2.02);
+      ctx.fill();
+      ctx.fillStyle = shade('#24384f', -dim);
+      ctx.beginPath();
+      ctx.ellipse(hx + faceLeft * 1.4, hy - 0.1, headR + 2.2, 1.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = hairC;
+      ctx.beginPath();
+      ctx.arc(hx, hy - 0.7, headR + 0.15, Math.PI * 1.03, Math.PI * 2.0);
+      ctx.fill();
+    }
+  } else {
+    /* short bob without hijab */
+    ctx.fillStyle = hairC;
+    ctx.beginPath();
+    ctx.arc(hx, hy - 0.5, headR + 0.5, Math.PI * 1.0, Math.PI * 2.03);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(hx - headR - 0.2, hy + 1.4, 1.1, headR, 0, 0, Math.PI * 2);
+    ctx.ellipse(hx + headR + 0.2, hy + 1.4, 1.1, headR, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ---- face ---- */
+  const eyeY = hy + 0.2;
+  ctx.fillStyle = 'rgba(42,30,20,.82)';
+  if (look.glasses) {
+    ctx.strokeStyle = 'rgba(46,40,34,.75)';
+    ctx.lineWidth = 0.55;
+    ctx.beginPath();
+    ctx.arc(hx - 1.55, eyeY, 1.25, 0, Math.PI * 2);
+    ctx.arc(hx + 1.55, eyeY, 1.25, 0, Math.PI * 2);
+    ctx.moveTo(hx - 0.3, eyeY);
+    ctx.lineTo(hx + 0.3, eyeY);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(hx - 1.5, eyeY, 0.56, 0, Math.PI * 2);
+  ctx.arc(hx + 1.5, eyeY, 0.56, 0, Math.PI * 2);
+  ctx.fill();
+  /* brows */
+  ctx.strokeStyle = 'rgba(52,38,24,.5)';
+  ctx.lineWidth = 0.45;
+  ctx.beginPath();
+  ctx.moveTo(hx - 2.2, eyeY - 1.1); ctx.lineTo(hx - 0.9, eyeY - 1.3);
+  ctx.moveTo(hx + 0.9, eyeY - 1.3); ctx.lineTo(hx + 2.2, eyeY - 1.1);
+  ctx.stroke();
+  /* mouth */
+  ctx.strokeStyle = 'rgba(120,62,48,.72)';
+  ctx.lineWidth = 0.55;
+  ctx.beginPath();
+  if (r.mood > 66) ctx.arc(hx, hy + 1.7, 1.2, 0.15 * Math.PI, 0.85 * Math.PI);
+  else if (r.mood < 34) ctx.arc(hx, hy + 2.8, 1.2, 1.2 * Math.PI, 1.8 * Math.PI);
+  else { ctx.moveTo(hx - 1, hy + 2.2); ctx.lineTo(hx + 1, hy + 2.2); }
+  ctx.stroke();
+
+  if (look.moustache) {
+    ctx.strokeStyle = shade(look.hair, -0.1);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(hx - 1.5, hy + 1.5); ctx.quadraticCurveTo(hx, hy + 1.1, hx + 1.5, hy + 1.5);
+    ctx.stroke();
+  }
+  if (look.beard) {
+    ctx.fillStyle = 'rgba(52,38,26,.55)';
+    ctx.beginPath();
+    ctx.arc(hx, hy + 0.9, headR - 0.55, 0.18 * Math.PI, 0.82 * Math.PI);
+    ctx.fill();
+  }
+
+  /* ---- carried thing ---- */
+  if (r.carry) {
+    ctx.font = '7px "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(r.carry, handR[0] + 1.6, handR[1] + 1.6);
+  } else if (look.bag) {
+    ctx.fillStyle = shade(look.bag, -dim);
+    rr(handR[0] - 1.4, handR[1] + 0.2, 3.2, 3.4, 1); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,22,14,.4)'; ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(handR[0] - 0.6, handR[1] + 0.4);
+    ctx.lineTo(handR[0] - 0.6, handR[1] - 0.6);
+    ctx.lineTo(handR[0] + 0.9, handR[1] - 0.6);
+    ctx.stroke();
+  }
 
   ctx.restore();
 }
 
 function measureBubble(text) {
-  const maxW = 148;
-  const font = '600 10.5px Cairo, sans-serif';
+  const maxW = 132;
+  const font = '600 9.8px Cairo, sans-serif';
   ctx.font = font;
   const words = text.split(' ');
   const lines = [];
@@ -901,73 +1127,183 @@ function measureBubble(text) {
   let w = 0;
   for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
   const bw = Math.min(maxW + 16, w + 16);
-  const bh = lines.length * 15 + 10;
+  const bh = lines.length * 14 + 9;
   return { lines, w: bw, h: bh, font };
 }
 
-function paintBubble(layout, cx, by) {
+function paintBubble(layout, cx, by, theme) {
   const bw = layout.w, bh = layout.h;
   const bx = cx - bw / 2;
+  const talk = theme === 'talk';
+  const fill = talk ? 'rgba(232,247,241,.98)' : 'rgba(251,244,226,.97)';
+  const edge = talk ? 'rgba(31,92,84,.9)' : 'rgba(59,46,33,.85)';
 
-  ctx.fillStyle = 'rgba(251,244,226,.97)';
-  ctx.strokeStyle = 'rgba(59,46,33,.85)';
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = edge;
   ctx.lineWidth = 1;
   rr(bx, by, bw, bh, 8);
   ctx.fill(); ctx.stroke();
   /* tail */
-  ctx.fillStyle = 'rgba(251,244,226,.97)';
+  ctx.fillStyle = fill;
   ctx.beginPath();
   ctx.moveTo(cx - 4, by + bh - 0.6);
   ctx.lineTo(cx + 4, by + bh - 0.6);
   ctx.lineTo(cx, by + bh + 5);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = 'rgba(59,46,33,.85)';
+  ctx.strokeStyle = edge;
   ctx.beginPath();
   ctx.moveTo(cx - 4, by + bh);
   ctx.lineTo(cx, by + bh + 5);
   ctx.lineTo(cx + 4, by + bh);
   ctx.stroke();
 
-  ctx.fillStyle = '#3b2e21';
+  ctx.fillStyle = talk ? '#1f443f' : '#3b2e21';
   ctx.font = layout.font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  layout.lines.forEach((l, i) => ctx.fillText(l, cx, by + 6 + i * 15));
+  layout.lines.forEach((l, i) => ctx.fillText(l, cx, by + 5 + i * 14));
 }
 
 function drawBubbles(now) {
-  let shown = 0;
+  let shown = 0, talks = 0;
   const placed = [];
   const hits = (a) => placed.some(b => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y);
 
   for (const r of sim.residents) {
+    if (r.speech && r.speech !== r._seenSpeech) {
+      r._seenSpeech = r.speech;
+      r._speechAt = now;
+    }
     const isSel = r.id === selectedId;
     const isHover = r.id === hoverId;
-    if (!r.thought) continue;
-    if (r._lastThought !== r.thought) {
-      r._lastThought = r.thought;
-      r._bubbleAt = now;
-    }
-    const fresh = now - (r._bubbleAt || 0) < 4600;
     const force = isSel || isHover;
-    if (!force) {
-      if (!showBubbles || !fresh) continue;
-      if (shown >= 4) continue;
-    }
 
-    const layout = measureBubble(r.thought);
+    let text = '';
+    let theme = 'thought';
+    if (r.speech && now - (r._speechAt || 0) < 3800 && (showBubbles || force) && talks < 3) {
+      text = r.speech;
+      theme = 'talk';
+    } else if (r.thought) {
+      if (r._lastThought !== r.thought) {
+        r._lastThought = r.thought;
+        r._bubbleAt = now;
+      }
+      const fresh = now - (r._bubbleAt || 0) < 4600;
+      if (force || (showBubbles && fresh && shown < 3)) text = r.thought;
+    }
+    if (!text) continue;
+
+    const layout = measureBubble(text);
     const cx = clamp(r.x, layout.w / 2 + 8, WORLD.w - layout.w / 2 - 8);
-    let by = r.y - 38 - layout.h;
+    let by = r.y - 44 - layout.h;
     let box = { x: cx - layout.w / 2, y: by, w: layout.w, h: layout.h };
     let tries = 0;
-    while (hits(box) && tries < 4) { by -= layout.h + 7; box = { x: box.x, y: by, w: box.w, h: box.h }; tries++; }
-    if (tries >= 4 && hits(box) && !force) continue;
+    while (hits(box) && tries < 5) { by -= layout.h + 6; box = { x: box.x, y: by, w: box.w, h: box.h }; tries++; }
+    if (tries >= 5 && hits(box) && !force) continue;
     if (by < 4) by = 4;
     box.y = by;
     placed.push(box);
-    paintBubble(layout, cx, by);
-    shown++;
+    paintBubble(layout, cx, by, theme);
+    if (theme === 'talk') talks++; else shown++;
+  }
+}
+
+function drawCounter(p, now, night) {
+  const x = p.door.x;
+  const y = p.door.y + 8;
+  const dim = clamp((night || 0) * 0.45, 0, 0.3);
+  const staff = sim.workerAt(p.id);
+  const waiting = sim.residents.some(r => r !== staff && r.task && ['shop', 'eat'].includes(r.task.kind) && r.task.placeId === p.id);
+  if (!staff && !waiting) return;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(58,38,20,.22)';
+  rr(x - 20, y + 5, 40, 4, 2); ctx.fill();
+
+  /* thin wooden counter */
+  const g = ctx.createLinearGradient(0, y, 0, y + 6);
+  g.addColorStop(0, shade('#b2834f', 0.12 - dim));
+  g.addColorStop(1, shade('#7d5530', -dim));
+  ctx.fillStyle = g;
+  rr(x - 19, y, 38, 6.5, 2.2); ctx.fill();
+  ctx.strokeStyle = 'rgba(52,34,18,.5)';
+  ctx.lineWidth = 0.7; ctx.stroke();
+  ctx.fillStyle = shade('#cba06c', 0.08 - dim);
+  rr(x - 19, y, 38, 1.7, 1.4); ctx.fill();
+
+  /* goods */
+  const goods = ['#d9a441', '#b6553f', '#5f8a5a', '#e6ddc7'];
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = shade(goods[i], -dim);
+    ctx.beginPath();
+    ctx.arc(x - 12 + i * 8, y - 1.4, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath();
+    ctx.arc(x - 12.5 + i * 8, y - 2, 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* tiny price tag on a stick */
+  ctx.strokeStyle = '#7a5a34'; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.moveTo(x + 20, y + 4); ctx.lineTo(x + 20, y - 7); ctx.stroke();
+  ctx.fillStyle = 'rgba(247,239,222,.95)';
+  rr(x + 15, y - 12, 11, 6, 1.6); ctx.fill();
+  ctx.strokeStyle = 'rgba(70,50,30,.5)'; ctx.lineWidth = 0.5; ctx.stroke();
+  ctx.fillStyle = '#8a5a12';
+  ctx.font = '700 3.8px Cairo, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('سعر', x + 20.5, y - 9);
+
+  /* serving shimmer */
+  if (staff) {
+    const pulse = 0.5 + Math.sin(now / 380) * 0.5;
+    ctx.fillStyle = `rgba(255,206,120,${0.06 + pulse * 0.05})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+const fxList = [];
+sim.onFx = ev => {
+  fxList.push(Object.assign({ t0: performance.now() }, ev));
+  if (fxList.length > 40) fxList.shift();
+};
+
+function drawFx(now) {
+  if (!sim.started) return;
+  for (let i = fxList.length - 1; i >= 0; i--) {
+    const f = fxList[i];
+    const age = (now - f.t0) / 1000;
+    if (age > 2.4) { fxList.splice(i, 1); continue; }
+    const rise = age * 13;
+    const alpha = age < 0.15 ? age / 0.15 : 1 - Math.max(0, (age - 1.1) / 1.3);
+    if (alpha <= 0) continue;
+    ctx.save();
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (f.type === 'sale') {
+      const text = String(f.text);
+      ctx.font = '800 10.5px Cairo, sans-serif';
+      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = 'rgba(255,247,226,.9)';
+      ctx.strokeText(text, f.x, f.y - rise);
+      ctx.fillStyle = '#8a5a12';
+      ctx.fillText(text, f.x, f.y - rise);
+    } else if (f.type === 'talk') {
+      ctx.font = '9px "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+      ctx.fillText('💬', f.x, f.y - rise);
+    } else if (f.type === 'queue') {
+      ctx.strokeStyle = 'rgba(60,42,24,.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y + 2, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
@@ -1033,9 +1369,14 @@ function draw(now) {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  /* people stay readable above the night tint */
+  /* people stay readable above the night tint — counters sit in the same depth queue */
   worldTransform();
-  sim.residents.slice().sort((a, b) => a.y - b.y).forEach(r => drawAgent(r, now, night));
+  const renderQueue = sim.residents.map(r => ({ y: r.y, draw: () => drawAgent(r, now, night) }));
+  for (const p of sim.places) {
+    if (p.counter) renderQueue.push({ y: p.door.y + 12, draw: () => drawCounter(p, now, night) });
+  }
+  renderQueue.sort((a, b) => a.y - b.y).forEach(item => item.draw());
+  drawFx(now);
 
   /* bubbles + labels on top of everything */
   const sel = sim.getResident(selectedId);
@@ -1062,6 +1403,7 @@ const FILTERS = {
   money: e => e.kind === 'money',
   work: e => e.kind === 'work',
   life: e => ['social', 'food', 'home'].includes(e.kind),
+  talk: e => e.kind === 'talk',
   event: e => ['event', 'system'].includes(e.kind),
 };
 
@@ -1146,6 +1488,7 @@ const TASK_LABEL = {
   social: 'قاعد مع الناس',
   jobSearch: 'بيدور على شغل',
   family: 'قاعد مع عياله',
+  shop: 'بيشتري حاجة',
   wander: 'بيتمشى',
 };
 
@@ -1177,29 +1520,146 @@ function updateCard() {
   setBar($('barFood'), 100 - r.hunger, r.hunger > 70 ? '#bc6047' : r.hunger > 45 ? '#d3a33f' : '#5f9e6a');
   setBar($('barEnergy'), r.energy, r.energy < 25 ? '#bc6047' : r.energy < 45 ? '#d3a33f' : '#5f9e6a');
   setBar($('barMood'), r.mood, moodColor(r.mood));
-  $('rcAction').innerHTML = `<b>دلوقتي:</b> ${esc(actionText(r))}`;
+  const friends = Object.values(r.rel || {}).filter(v => v.aff >= 45).length;
+  const hearts = r.crushes.length + sim.residents.filter(o => o.crushes.includes(r.id)).length;
+  $('rcAction').innerHTML =
+    `<b>دلوقتي:</b> ${esc(actionText(r))}` +
+    ` <span class="rc-social">🤝 ${ar(friends)} أصحاب${hearts ? ' • ❤ ' + ar(r.crushes.length) : ''}</span>`;
   $('rcThought').innerHTML = `<span>💭</span><span>${r.thought ? esc(r.thought) : 'ساكت… بيفكر.'}</span>`;
+}
+
+let profileId = null;
+
+function relBars(r) {
+  const list = Object.entries(r.rel || {})
+    .map(([id, rel]) => ({ p: sim.getResident(Number(id)), rel }))
+    .filter(x => x.p && x.rel.aff >= 8)
+    .sort((a, b) => b.rel.aff - a.rel.aff)
+    .slice(0, 8);
+  if (!list.length) return '<div class="prof-empty">لسه بياخد وقت عشان يتعرف على الناس.</div>';
+  return list.map(({ p, rel }) => {
+    const heart = r.crushes.includes(p.id) ? ' ❤' : '';
+    return `<div class="relrow" data-id="${p.id}">
+      <span class="relname">${esc(p.name)}${heart}</span>
+      <div class="mini"><i style="width:${Math.round(rel.aff)}%"></i></div>
+      <b>${rel.friends ? (rel.friends > 1 ? 'صاحب أوي' : 'صاحب') : ar(Math.round(rel.aff))}</b>
+    </div>`;
+  }).join('');
+}
+
+function renderProfile(r) {
+  const place = r.jobTitle ? sim.getPlace(r.workplaceId) : null;
+  const home = sim.getPlace(r.homeId);
+  const likes = r.crushes.map(id => sim.getResident(id)).filter(Boolean);
+  const likedBy = sim.residents.filter(o => o.crushes.includes(r.id));
+  const quotes = r.quotes.slice(-8).reverse();
+  const acts = uiLogs.filter(e => e.rid === r.id && e.kind !== 'talk').slice(-14).reverse();
+  const friends = Object.values(r.rel || {}).filter(v => v.aff >= 45).length;
+
+  $('peopleList').innerHTML = `
+  <div class="prof">
+    <button type="button" class="prof-back" data-back="1">→ كل البشر</button>
+    <div class="prof-head">
+      <div class="prof-ava" style="background:${r.color}">${esc(r.name.slice(0, 1))}<span>${r.gender === 'f' ? '♀' : '♂'}</span></div>
+      <div class="prof-id">
+        <div class="prof-name">${esc(r.name)}</div>
+        <div class="prof-meta">${r.gender === 'f' ? (r.age < 30 ? 'بنت' : 'ست') : (r.age < 30 ? 'شاب' : 'راجل')} • ${ar(r.age)} سنة • ${esc(home ? home.name : '—')} شقة ${ar(r.flatNo)}</div>
+        <div class="prof-meta">${place ? esc(r.jobTitle) + ' في ' + esc(place.name) : 'عاطل بيدور على شغل'}</div>
+      </div>
+    </div>
+    <div class="prof-money"><strong>${ar(Math.round(r.money))}</strong><span>جنيه في الجيب</span>
+      <em>💼 ${r.jobTitle ? 'شغال' : 'بيدور'}</em></div>
+    <div class="prof-now"><b>دلوقتي:</b> ${esc(actionText(r))}</div>
+    <div class="prof-thought"><span>💭</span><span>${esc(r.thought || 'ساكت… بيفكر.')}</span></div>
+    <div class="prof-bars">
+      <div class="pb"><span>الأكل</span><div class="mini"><i style="width:${Math.round(100 - r.hunger)}%;background:${r.hunger > 70 ? '#bc6047' : '#5f9e6a'}"></i></div></div>
+      <div class="pb"><span>الطاقة</span><div class="mini"><i style="width:${Math.round(r.energy)}%;background:${r.energy < 30 ? '#bc6047' : '#5f9e6a'}"></i></div></div>
+      <div class="pb"><span>المزاج</span><div class="mini"><i style="width:${Math.round(r.mood)}%;background:${moodColor(r.mood)}"></i></div></div>
+    </div>
+
+    <div class="prof-sec">📣 آخر كلامه <small>${ar(r.quotes.length)} كلمة</small></div>
+    ${quotes.length ? quotes.map(q => `<div class="quote"><div>«${esc(q.text)}»</div>
+      <span>${q.side === 'رد' ? 'ردّ على' : 'مع'} ${esc(q.to)} • يوم ${ar(q.day)} ${timeLabel(q.time)}</span></div>`).join('')
+      : '<div class="prof-empty">لسه ما اتكلمش مع حد… دوس سرعة ٢× واستنى.</div>'}
+
+    <div class="prof-sec">🤝 أصحابه وناسه <small>${ar(friends)} صاحب</small></div>
+    ${relBars(r)}
+
+    <div class="prof-sec">❤ اللي في قلبه</div>
+    ${likes.length || likedBy.length ? `
+      ${likes.map(p => `<div class="heartrow" data-id="${p.id}">💗 معجب بـ<b>${esc(p.name)}</b><span>${p.crushes.includes(r.id) ? 'والحب من الطرفين' : 'ومش عارف يقولها'}</span></div>`).join('')}
+      ${likedBy.map(p => `<div class="heartrow" data-id="${p.id}">💌 <b>${esc(p.name)}</b> معجب بيه<span>وهو مش واخد باله</span></div>`).join('')}
+    ` : '<div class="prof-empty">قلبه فاضي… مشغول بالشغل والإيجار.</div>'}
+
+    <div class="prof-sec">🕘 آخر اللي عمله</div>
+    ${acts.length ? acts.map(e => {
+      const k = KINDS[e.kind] || KINDS.system;
+      return `<div class="actrow"><span>${k.icon}</span><div><b>يوم ${ar(e.day)} • ${timeLabel(e.time)}</b>${esc(e.text)}</div></div>`;
+    }).join('') : '<div class="prof-empty">لسه مفيش حاجة مسجلة.</div>'}
+
+    <button type="button" class="prof-focus" data-focus="${r.id}">📍 بص عليه في الحارة</button>
+  </div>`;
 }
 
 function renderPeople(force) {
   if ($('peopleBody').hidden && !force) return;
   if (!sim.residents.length) {
+    profileId = null;
     peopleList.innerHTML = '<div class="log-empty">لسه مفيش سكان في الحارة.<br>استدعِ الحارة الأول.</div>';
     return;
   }
+  const scroll = peopleList.scrollTop;
+  if (profileId != null) {
+    const r = sim.getResident(profileId);
+    if (!r) profileId = null;
+    else { renderProfile(r); peopleList.scrollTop = scroll; return; }
+  }
+
+  const head = `<div class="people-head">${ar(sim.residents.length)} إنسان في الحارة • <b>${ar(sim.employed)}</b> بيشتغلوا
+    <span>دوس على أي حد تشوف حياته كلها</span></div>`;
   const rows = sim.residents.map(r => {
     const job = r.jobTitle ? esc(r.jobTitle) : 'عاطل';
+    const friends = Object.values(r.rel || {}).filter(v => v.aff >= 45).length;
+    const last = r.quotes.length ? r.quotes[r.quotes.length - 1] : null;
+    const hearts = r.crushes.length;
     return `<div class="person ${r.id === selectedId ? 'sel' : ''}" data-id="${r.id}">
-      <div class="avatar" style="background:${r.color}">${esc(r.name.slice(0, 1))}</div>
-      <div>
-        <div class="p-name">${esc(r.name)}<span class="gtag">${r.gender === 'f' ? '♀' : '♂'} ${ar(r.age)}</span></div>
+      <div class="avatar ${r.gender === 'f' ? 'f' : 'm'}" style="background:${r.color}">${esc(r.name.slice(0, 1))}</div>
+      <div class="p-main">
+        <div class="p-name">${esc(r.name)}<span class="gtag">${r.gender === 'f' ? '♀' : '♂'} ${ar(r.age)}</span>
+          ${friends ? `<span class="pbadge">🤝 ${ar(friends)}</span>` : ''}${hearts ? `<span class="pbadge heart">❤ ${ar(hearts)}</span>` : ''}</div>
         <div class="p-sub"><span>${job}</span><span>•</span><span>${esc(homeName(r))}</span>
           <span class="mooddot" style="background:${moodColor(r.mood)}"></span></div>
+        ${last ? `<div class="p-note">💬 «${esc(last.text)}»</div>` : '<div class="p-note muted">لسه ما اتكلمش مع حد</div>'}
       </div>
       <div class="p-money">${ar(Math.round(r.money))}<small>جنيه</small></div>
     </div>`;
   }).join('');
-  peopleList.innerHTML = rows;
+  peopleList.innerHTML = head + rows;
+  peopleList.scrollTop = scroll;
+}
+
+function openProfile(id) {
+  profileId = id;
+  select(id);
+  const r = sim.getResident(id);
+  if (!r) return;
+  const p = $('peopleBody');
+  if (p.hidden) {
+    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === 'people'));
+    $('logBody').hidden = true;
+    $('peopleBody').hidden = false;
+    $('townBody').hidden = true;
+    $('filters').style.display = 'none';
+  }
+  renderPeople(true);
+  peopleList.scrollTop = 0;
+}
+
+function focusResident(r) {
+  cam.zoom = Math.max(cam.zoom, 1.45);
+  cam.x = r.x;
+  cam.y = r.y;
+  clampCam();
 }
 
 function renderTown() {
@@ -1290,6 +1750,8 @@ $('resetBtn').addEventListener('click', () => {
 function resetGame() {
   sim.reset();
   uiLogs = [];
+  fxList.length = 0;
+  profileId = null;
   selectedId = null;
   hoverId = null;
   $('card').hidden = true;
@@ -1365,6 +1827,7 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
     $('townBody').hidden = tab !== 'town';
     $('filters').style.display = tab === 'log' ? 'flex' : 'none';
     if (tab === 'people') renderPeople(true);
+    else if (tab === 'log') { /* profile stays for later */ }
     if (tab === 'town') renderTown();
   });
 });
@@ -1384,9 +1847,21 @@ logList.addEventListener('click', e => {
 });
 
 peopleList.addEventListener('click', e => {
-  const row = e.target.closest('.person[data-id]');
+  if (e.target.closest('[data-back]')) {
+    profileId = null;
+    renderPeople(true);
+    peopleList.scrollTop = 0;
+    return;
+  }
+  const focusBtn = e.target.closest('[data-focus]');
+  if (focusBtn) {
+    const r = sim.getResident(Number(focusBtn.dataset.focus));
+    if (r) { focusResident(r); sim.onToast('ودّينا الكاميرا على ' + r.name); }
+    return;
+  }
+  const row = e.target.closest('[data-id]');
   if (!row) return;
-  select(Number(row.dataset.id));
+  openProfile(Number(row.dataset.id));
 });
 
 /* canvas interactions */
@@ -1486,4 +1961,4 @@ syncHud();
 requestAnimationFrame(frame);
 
 /* handy for debugging in the console */
-window.__harat = { sim, cam, select };
+window.__harat = { sim, cam, select, openProfile };
