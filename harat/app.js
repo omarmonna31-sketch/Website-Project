@@ -1307,6 +1307,28 @@ function resetGame() {
 
 $('rcClose').addEventListener('click', () => select(null));
 
+$('exportBtn').addEventListener('click', () => {
+  if (!sim.started || !sim.logs.length) { sim.onToast('لسه مفيش سجل تنزّله'); return; }
+  const lines = sim.logs.map(e => {
+    const kind = (KINDS[e.kind] || KINDS.system).label;
+    return `[يوم ${e.day} — ${timeLabel(e.time)}] (${kind})${e.name ? ' ' + e.name + ':' : ''} ${e.text}`;
+  });
+  const text = 'حياة الحارات — سجل الحارة كامل\n' + '='.repeat(40) + '\n' + lines.join('\n') + '\n';
+  try {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'حياة-الحارات-السجل.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    sim.onToast('السجل اتنزّل');
+  } catch (err) {
+    sim.onToast('المتصفح مش سامح بالتنزيل');
+  }
+});
+
 $('bubbleBtn').addEventListener('click', () => {
   showBubbles = !showBubbles;
   $('bubbleBtn').classList.toggle('ghost-on', showBubbles);
