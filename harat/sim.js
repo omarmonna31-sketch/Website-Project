@@ -5,9 +5,19 @@
    sleeps — and narrates what it is thinking the whole time.
    ============================================================ */
 
+import { DialogueEngine, LINES, jobGroup } from './dialogue.js';
+import { TutorialEngine, TUTORIAL_STEPS } from './tutorial.js';
+import {
+  MAYOR_ROLES, MAYOR_COMMANDS, TAX_LIMITS, COVERAGE_LEVELS, COVERAGE_LABEL,
+  SERVICES, GRANT_LIMIT_NEEDS_CONFIRM, FINE_LIMIT, CONFIRM_TTL, freshMayorState,
+} from './mayor.js';
+
 export const WORLD = { w: 1240, h: 920 };
 /* one in-game day = 120 real seconds at 1× */
-export const SIM_MIN_PER_SEC = 12;
+/* طول اليوم: ١٢ دقيقة محاكاة/ثانية كانت سريعة — بقى ٩.٦ (يوم أطول بـ٢٥٪)
+   القيمة قابلة للتغيير من بره (SIM_MIN_PER_SEC أو sim.setDayLength) */
+export const SIM_MIN_PER_SEC = 9.6;
+export const DAY_LENGTH_FACTORS = [0.25, 0.5, 1, 1.5, 2, 4];
 export const WALK_PX_PER_SEC = 135;
 
 const AR = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -58,6 +68,7 @@ export const KINDS = {
   police: { icon: '🚓', label: 'شرطة', color: '#3a6ea5' },
   ride: { icon: '🚕', label: 'مشاوير', color: '#b0892a' },
   match: { icon: '⚽', label: 'كورة', color: '#4a8a4a' },
+  mayor: { icon: '🏛️', label: 'العمدة', color: '#8a6f2f' },
 };
 
 /* ------------------------------------------------------------
@@ -130,6 +141,81 @@ export const PLACE_DEFS = [
     jobs: [{ title: 'شرطي', wage: 195, start: 8 * 60, end: 23 * 60 }] },
 ];
 
+/* ============================================================
+   شكل البيوت: كل بيت بياخد لوك مختلف حسب الحي + بذرة البيت،
+   وبيتخزّن مع البيت نفسه عشان ما يتغيّرش بعد الحفظ والتحميل،
+   والجيران مش بيتشبهوا لبعض.
+   ============================================================ */
+export const NEIGHBOURHOODS = [
+  { id: 'west', name: 'غرب الحارة', test: (x, y) => x < 520, walls: ['#d9b78c', '#cfa87f', '#d3ae84', '#c9a273'], trim: ['#8a6a45', '#7d5f3e', '#94714a'] },
+  { id: 'east', name: 'شرق الحارة', test: (x, y) => x >= 720, walls: ['#d9b995', '#ceb08c', '#d7bda1', '#c7a17e'], trim: ['#8f7050', '#7a5b3c', '#9c7c56'] },
+  { id: 'south', name: 'جنوب الحارة', test: (x, y) => y >= 600, walls: ['#cfa98a', '#c69a76', '#d8bda2', '#bfa07c'], trim: ['#7c5c3d', '#8a6a45', '#6f5234'] },
+  { id: 'north', name: 'شمال الحارة', test: () => true, walls: ['#dcbc93', '#d2ac86', '#e0c39c', '#c9a780'], trim: ['#8b6b47', '#7f6040', '#97754d'] },
+];
+
+export const ROOF_STYLES = ['parapet', 'pitched', 'dome', 'ladder', 'deck'];
+export const DOOR_STYLES = ['wood', 'metal', 'painted', 'grill'];
+
+/* رندرة رقم بذرة ثابتة (نفس البيت = نفس الشكل دايمًا) */
+function seeded(seed, salt = 0) {
+  let x = Math.sin((seed + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+const seededPick = (arr, seed, salt) => arr[Math.floor(seeded(seed, salt) * arr.length) % arr.length];
+
+export function neighbourhoodOf(x, y) {
+  for (const nb of NEIGHBOURHOODS) if (nb.test(x, y)) return nb;
+  return NEIGHBOURHOODS[NEIGHBOURHOODS.length - 1];
+}
+
+export function homeSignature(look) {
+  return [look.roof, look.wall, look.cols, look.doorStyle, look.doorColor, look.extras.join('+')].join('|');
+}
+
+/* neighbors: لوكات البيوت القريبة (عشان نمنع التشابه بين الجيران) */
+export function makeHomeLook(seed, x, y, neighbors = []) {
+  const nb = neighbourhoodOf(x, y);
+  const nearSigs = new Set(neighbors.map(homeSignature));
+  const nearWalls = new Set(neighbors.map(n => n.wall));
+  const nearRoofs = new Set(neighbors.map(n => n.roof));
+  const roofPool = nb.id === 'east' ? ['deck', 'parapet', 'pitched', 'ladder'] : ['parapet', 'ladder', 'pitched', 'dome', 'deck'];
+  const doorColors = ['#6e4526', '#7a4a2c', '#3f5e6b', '#5c6b3f', '#7a3f3f', '#4a5a7a'];
+  const extraPool = ['balcony', 'tanks', 'dish', 'laundry', 'ac', 'stairs', 'awning', 'band', 'shutters', 'bricks'];
+  let best = null;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const salt = attempt * 7;
+    /* الجار مش ياخد نفس لون الحي ولا نفس السقف لو فيه بدائل */
+    const wallPool = nb.walls.filter(w => !nearWalls.has(w));
+    const roofChoices = roofPool.filter(r => !nearRoofs.has(r));
+    const look = {
+      roof: seededPick(roofChoices.length ? roofChoices : roofPool, seed, 1 + salt),
+      wall: seededPick(wallPool.length ? wallPool : nb.walls, seed, 2 + salt),
+      trim: seededPick(nb.trim, seed, 3 + salt),
+      cols: 2 + Math.floor(seeded(seed, 4 + salt) * 3),          /* ٢..٤ أعمدة شبابيك */
+      rows: 2 + Math.floor(seeded(seed, 5 + salt) * 2),          /* ٢..٣ أدوار */
+      doorStyle: seededPick(DOOR_STYLES, seed, 6 + salt),
+      doorColor: seededPick(doorColors, seed, 7 + salt),
+      extras: [],
+      plaster: seeded(seed, 8) > 0.35,
+      zone: nb.id,
+      zoneName: nb.name,
+      seed,
+    };
+    /* ٢–٣ تفاصيل خارجية مختلفة لكل بيت */
+    const want = 2 + Math.floor(seeded(seed, 9) * 2);
+    const pool = extraPool.slice();
+    for (let k = 0; k < want && pool.length; k++) {
+      const idx = Math.floor(seeded(seed, 20 + k) * pool.length) % pool.length;
+      look.extras.push(pool.splice(idx, 1)[0]);
+    }
+    best = look;
+    const sig = homeSignature(look);
+    if (nearSigs.has(sig)) continue;                    /* نفس الشكل بالحرف؟ جرّب تاني */
+    return look;
+  }
+  return best;
+}
+
 export const BUILD_COST = 1400;
 export const BUILD_HOURS = [7, 19];
 /* ---- عربيات المعرض ---- */
@@ -153,9 +239,9 @@ const HOME_SEATS = [
   { x: 0.40, y: 0.78 }, { x: 0.50, y: 0.78 },
   { x: 0.60, y: 0.78 }, { x: 0.86, y: 0.78 },
 ];
-export const SAVE_VERSION = 4;
-export const SAVE_KEY = 'harat.save.v4';
-export const SAVE_VERSION_LEGACY = [3];   /* بنقبل الحفظ القديم ونطوّره */
+export const SAVE_VERSION = 5;
+export const SAVE_KEY = 'harat.save.v5';
+export const SAVE_VERSION_LEGACY = [3, 4];   /* بنقبل الحفظ القديم ونطوّره */
 
 const PRODUCTS = {
   baqala: [{ name: 'سكر وشاي', price: 22, icon: '🧺' }, { name: 'جبنة وبيض', price: 26, icon: '🥚' }, { name: 'رز ومكرونة', price: 18, icon: '🍚' }],
@@ -457,6 +543,7 @@ export class Sim {
     this.started = false;
     this.paused = false;
     this.speed = 1;
+    this.timeScale = 1;            /* مضاعف طول اليوم: ١ = ١٥٠ ثانية عند سرعة ١× */
     this.minute = 7 * 60 + 20;
     this.day = 1;
     this.places = [];
@@ -465,8 +552,12 @@ export class Sim {
     this.seq = 1;
     this.nextRid = 1;
     this.nav = null;
-    this.stats = { earned: 0, spent: 0, meals: 0, rent: 0, bills: 0, gigs: 0, hires: 0, sales: 0, salesCount: 0, talks: 0, builds: 0, weddings: 0 };
+    this.stats = { earned: 0, spent: 0, meals: 0, rent: 0, bills: 0, gigs: 0, hires: 0, sales: 0, salesCount: 0, talks: 0, builds: 0, weddings: 0, housed: 0, evictions: 0, fines: 0, taxes: 0, skips: 0 };
     this.mod = { foodPrice: 1, energyDrain: 1, moodBias: 0, until: 0, name: '' };
+    this.dialogue = new DialogueEngine();
+    this.mayor = freshMayorState();
+    this.tutorial = new TutorialEngine();
+    this.pendingConfirms = {};
     this.powerCut = false;
     this.events = [];
     this.lastEventDay = 0;
@@ -502,7 +593,34 @@ export class Sim {
   }
 
   /* ---------- helpers ---------- */
+  /* طول اليوم بالساعات الحقيقية عند سرعة معيّنة */
+  daySeconds(speed = this.speed) {
+    /* timeScale = مضاعف طول اليوم: ٠٫٥ = يوم نص المدة، ٤ = يوم أطول ٤ مرات */
+    const rate = SIM_MIN_PER_SEC * speed;
+    return rate > 0 ? (1440 / rate) * this.timeScale : Infinity;
+  }
+  setDayLength(factor) {
+    const f = Number(factor);
+    if (!isFinite(f) || f <= 0) return { ok: false, reason: 'طول اليوم لازم يكون رقم أكبر من صفر' };
+    this.timeScale = clamp(Number(f) || 1, 0.25, 4);
+    return { ok: true, timeScale: this.timeScale, daySeconds: this.daySeconds() };
+  }
+
   getPlace(id) { return this.places.find(p => p.id === id) || null; }
+
+  /* كل بيت بياخد شكله مرة واحدة ويفضل معاه (وبيتحفظ جوه place.look) */
+  applyHomeLooks() {
+    const homes = this.places.filter(p => p.kind === 'home');
+    for (const home of homes) {
+      if (home.look) continue;
+      const neighbors = homes
+        .filter(o => o !== home && o.look && Math.hypot((o.x + o.w / 2) - (home.x + home.w / 2), (o.y + o.h / 2) - (home.y + home.h / 2)) < 260)
+        .map(o => o.look);
+      home.look = makeHomeLook(home.seed != null ? home.seed : (home.x + home.y), home.x + home.w / 2, home.y + home.h / 2, neighbors);
+      home.color = home.look.wall;
+    }
+  }
+
   getResident(id) { return this.residents.find(r => r.id === id) || null; }
   get t() { return tod(this.minute); }
   get totalMoney() { return this.residents.reduce((s, r) => s + r.money, 0); }
@@ -518,6 +636,9 @@ export class Sim {
   }
 
   freeFlats() {
+    return this.places.filter(p => p.kind === 'home' && p.rentalsOpen !== false && this.freeFlatsIn(p) > 0);
+  }
+  allFreeFlats() {
     return this.places.filter(p => p.kind === 'home' && this.freeFlatsIn(p) > 0);
   }
 
@@ -588,6 +709,9 @@ export class Sim {
     lot.households = [];
     lot.color = pick(['#d9b78c', '#cfa87f', '#d3ae84', '#ceb08c']);
     lot.jobs = null;
+    lot.seed = (lot.seed != null ? lot.seed : 7) + 31;
+    delete lot.look;
+    this.applyHomeLooks();
     this.validateJobs();
     const owner = pr.ownerId ? this.getResident(pr.ownerId) : null;
     this.stats.builds = (this.stats.builds || 0) + 1;
@@ -606,7 +730,7 @@ export class Sim {
         }
         const partner = household.members.map(id => this.getResident(id)).find(m => m && m.id !== owner.id);
         this.addLog('home', `${owner.name}${partner ? ' و' + partner.name : ''} اتنقلوا يسكنوا في بيتهم الجديد «${lot.name}».`, owner);
-        this.think(owner, pick(['أخيراً بقى عندي بيت باسمي…', 'شقتي الجديدة… ربنا يبارك.']));
+        this.think(owner, this.line(owner, 'newHome'));
       } else {
         owner.homeId = lot.id;
         owner.rentAmount = Math.round(lot.rent / 2);
@@ -656,7 +780,7 @@ export class Sim {
       r.rentNotice = 0;
       r.mood = clamp(r.mood + 8, 0, 100);
       this.addLog('home', `${r.name} ساب بيت أهله وسكن لوحده في ${target.name}… «وقت الاعتماد على النفس».`, r);
-      this.think(r, pick(['أول مرة أسكن لوحدي… الدنيا كبيرة.', 'الإيجار مسؤولية… يلا نشوف.']));
+      this.think(r, this.line(r, 'movedOut'));
       break;
     }
     return homeless.length > 0;
@@ -681,6 +805,7 @@ export class Sim {
       id: this.seq++,
       day: this.day,
       time: tod(this.minute),
+      minute: this.minute,
       kind,
       text,
       rid: r ? r.id : null,
@@ -699,6 +824,43 @@ export class Sim {
     r.thoughtAt = this.minute;
     this.addLog('think', text, r);
   }
+
+  /* جملة من محرّك الحوار: بتراعي الشغل والمزاج والوقت والعلاقة والأحداث الأخيرة */
+  line(r, topic, extra = {}) {
+    if (!r) return '';
+    const text = this.dialogue.pick(this, r, topic, extra);
+    if (text) { r.lastLine = text; return text; }
+    const fallback = (LINES[topic] || []).map(e => e.t);
+    return fallback.length ? pick(fallback) : '';
+  }
+
+  /* جملة سريعة من قايمة محلية: بتمنع إن الشخص يكرر آخر جُملة قالها */
+  say(r, arr) {
+    if (!r || !arr || !arr.length) return '';
+    r.dlg = r.dlg || { used: {}, recent: [] };
+    const quiet = (x) => {
+      if (x === r.lastLine || r.dlg.recent.includes(x)) return false;
+      const g = this.dialogue.lastSaid(x);
+      return !(g && g.rid !== r.id && this.minute - g.at < 45);
+    };
+    let pool = arr.filter(quiet);
+    if (!pool.length) pool = arr.filter(x => !r.dlg.recent.includes(x));
+    const text = pick(pool.length ? pool : arr);
+    this.dialogue.record(this, r, 'inline', text);
+    r.lastLine = text;
+    return text;
+  }
+
+  /* كل قد إيه حصل حدث من نوع معيّن (بالدقايق) — للجُمل اللي بتتكلم عن اللي حصل */
+  recentEventAge(kind) {
+    for (let i = this.logs.length - 1; i >= 0; i--) {
+      const e = this.logs[i];
+      if (e.kind === kind) return Math.max(0, this.minute - (e.minute != null ? e.minute : this.minute));
+    }
+    return Infinity;
+  }
+
+  jobGroupOf(r) { return jobGroup(r && r.jobTitle); }
 
   toast(text) { if (this.onToast) this.onToast(text); }
 
@@ -724,6 +886,7 @@ export class Sim {
       place.floors = place.flats ? 3 : 0;
       return place;
     });
+    this.applyHomeLooks();
     this.nav = buildNav(this.places);
     this.started = true;
     this.minute = 7 * 60 + 20;
@@ -899,7 +1062,7 @@ export class Sim {
 
     const jobTxt = r.jobTitle ? `اشتغل ${r.jobTitle} في ${this.getPlace(r.workplaceId).name}` : 'نزل يدور على شغل';
     this.addLog('system', `وصل ساكن جديد للحارة: ${r.name} (${ar(r.age)} سنة) — سكن في ${home.name} شقة ${ar(flatNo)}، و${jobTxt}.`, r);
-    this.think(r, pick(['حارة جديدة… ربنا يسهّل.', 'الشقة صغيرة، بس دي بداية.', 'أول مرة أسكن في حارة زي دي… يارب تعجبني.']));
+    this.think(r, this.say(r, ['حارة جديدة… ربنا يسهّل.', 'الشقة صغيرة، بس دي بداية.', 'أول مرة أسكن في حارة زي دي… يارب تعجبني.']));
     return r;
   }
 
@@ -1090,8 +1253,8 @@ export class Sim {
           this.bumpRel(r, cook, 3);
           if (chance(0.35)) {
             this.talkTo(r, cook,
-              pick(TALK.customer).replace('{p}', task.product.name).replace('{n}', cook.name.split(' ')[0]),
-              pick(TALK.seller).replace('{n}', r.name.split(' ')[0]));
+              this.line(r, 'customer').replace('{p}', task.product.name).replace('{n}', cook.name.split(' ')[0]),
+              this.line(cook, 'seller', { partner: r }).replace('{n}', r.name.split(' ')[0]));
           }
         }
         task.stage = 'eat';
@@ -1110,7 +1273,7 @@ export class Sim {
         r.task = null;
         r.phase = 'idle';
         r.micro = null;
-        this.think(r, pick(['شبعت… الحمد لله.', 'الأكل هنا طعمه زي البيت.', 'القرش بيطير بسرعة…']));
+        this.think(r, this.line(r, 'ate'));
       }
     }
   }
@@ -1356,7 +1519,7 @@ export class Sim {
     mother.mood = clamp(mother.mood + 15, 0, 100);
     father.mood = clamp(father.mood + 15, 0, 100);
     this.addLog('love', `اتولد ${gender === 'm' ? 'مولود' : 'مولودة'} جديد في بيت ${father.name.split(' ')[0]}: ${name} 👶`, father);
-    this.think(mother, pick(['ربنا يحفظه… بقى عندي طفل جديد.', 'السهر بقى على العيل الصغير.', 'دعواتي إنه يكبر على خير.']));
+    this.think(mother, this.line(mother, 'kidBorn'));
     return kid;
   }
 
@@ -1390,7 +1553,7 @@ export class Sim {
           r.householdId = null;
         }
         this.addLog('event', `${r.name} كبر وبقى ${ar(r.age)} سنة… بقى من الكبار في الحارة وبيدور على شغل وشقة.`, r);
-        this.think(r, pick(['كبرت… لازم أشتغل وأعتمد على نفسي.', 'أول خطوة: شغل، وبعدها شقة.']));
+        this.think(r, this.line(r, 'grown'));
       }
     }
   }
@@ -1532,8 +1695,8 @@ export class Sim {
 
     /* now and then a small argument */
     if (chance(0.05) && aff > 15) {
-      const lineA = pick(TALK.argue);
-      const lineB = pick(TALK.argue);
+      const lineA = this.line(r, 'argue', { partner: best });
+      const lineB = this.line(best, 'argue', { partner: r });
       this.addLog('social', `اتكلموا… وخناقة صغيرة بين ${r.name} و${best.name}.`, r);
       r.speech = lineA; r.speechAt = this.minute;
       best.speech = lineB; best.speechAt = this.minute;
@@ -1547,9 +1710,9 @@ export class Sim {
       return;
     }
 
-    const pool = aff >= 45 ? TALK.friends : aff >= 20 ? TALK.small : TALK.greet;
-    const lineA = pick(pool).replace('{n}', short);
-    const lineB = pick(TALK.reply);
+    const topicA = aff >= 45 ? 'friends' : aff >= 20 ? 'small' : 'greet';
+    const lineA = this.line(r, topicA, { partner: best }).replace('{n}', short);
+    const lineB = this.line(best, 'reply', { partner: r }).replace('{n}', r.name.split(' ')[0]);
     this.talkTo(r, best, lineA, lineB);
 
     /* feelings quietly grow */
@@ -1557,7 +1720,7 @@ export class Sim {
       r.crushes.push(best.id);
       r.mood = clamp(r.mood + 8, 0, 100);
       this.addLog('event', `${r.name} حاسس إن قلبه مال لـ${best.name}… ومش عارف يقولها.`, r);
-      this.think(r, pick(['مش عارف أقولها إزاي…', 'كل ما أشوفه بنسى الكلام.', 'قلبي بيدق بسرعة لما بتيجي.']));
+      this.think(r, this.line(r, 'love'));
       if (best.crushes.includes(r.id)) {
         r.confessed = r.confessed || {};
         if (!r.confessed[best.id]) {
@@ -1579,6 +1742,7 @@ export class Sim {
   }
 
   goToPlace(r, place, kind, extra = {}) {
+    if (!place) return this.wander(r);
     const door = place.door;
     let tx = door.x + r.jitter.x;
     let ty = door.y + r.jitter.y;
@@ -1648,7 +1812,7 @@ export class Sim {
       r.task = null;
       r.phase = 'idle';
       r.until = null;
-      if (ok) this.think(r, pick(['الفلوس في جيبي… يلا أجري.', 'محدش شاف حاجة… الحمد لله.', 'لو فضلت كده، هلبس في يوم.']));
+      if (ok) this.think(r, this.say(r, ['الفلوس في جيبي… يلا أجري.', 'محدش شاف حاجة… الحمد لله.', 'لو فضلت كده، هلبس في يوم.']));
       return;
     }
 
@@ -1683,7 +1847,7 @@ export class Sim {
         return;
       }
       this.addLog('work', `سأل على شغل في ${place.name}… مفيش مكان دلوقتي.`, r);
-      this.think(r, pick(['مفيش شغل هنا… يلا نجرب مكان تاني.', 'كل ما أروح مكان يقولولي تعالى بكرة.']));
+      this.think(r, this.line(r, 'jobFail'));
     }
 
     if (task.kind === 'work' && place) {
@@ -1698,10 +1862,10 @@ export class Sim {
         const order = task.kind === 'shop' ? (task.product ? task.product.name : 'حاجة') : (place.meal ? place.meal.name : 'طلب');
         task.orderName = order;
         const qlen = this.residents.filter(o => o !== r && o.task && o.task.kind === task.kind && o.task.placeId === place.id && o.phase === 'act').length;
-        if (qlen > 0) this.think(r, pick(['الطابور طويل النهاردة…', 'دوري جاي، أستنى شوية.', 'الدنيا زحمة… الصبر.']));
+        if (qlen > 0) this.think(r, this.line(r, 'queue'));
         if (chance(0.65)) {
           this.addLog('work', `جاله زبون: ${r.name} عايز ${order}.`, server);
-          this.think(server, pick(['الزبون ده محترم…', 'الشغل ماشي النهاردة.', 'يلا نخدم الراجل.']));
+          this.think(server, this.say(server, ['الزبون ده محترم…', 'الشغل ماشي النهاردة.', 'يلا نخدم الراجل.']));
         }
         this.fx('queue', place.door.x - 26, place.door.y + 18, '🧍');
         task.serverId = server.id;
@@ -1770,9 +1934,9 @@ export class Sim {
         r.mood = clamp(r.mood + (ratio > 0.85 ? 3 : -1), 0, 100);
         this.addLog('money', `استلم يومية النهاردة (${r.jobTitle || 'شغل'}): ${money(wage)}.`, r);
         if (ratio < 0.8) {
-          this.think(r, pick(['اليومية ناقصة النهاردة… وصلت متأخر.', 'لو وصلت بدري، كنت خدت اليومية كاملة.']));
+          this.think(r, this.line(r, 'wageShort'));
         } else {
-          this.think(r, pick(['الحمد لله، اليومية وصلت.', `معايا ${money(r.money)}… أحسن من امبارح.`, 'يومية النهاردة تمام… يلا نصرف بحساب.']));
+          this.think(r, this.line(r, 'wage'));
         }
         break;
       }
@@ -1794,7 +1958,7 @@ export class Sim {
           r.money -= 0;    // charity meal
           r.mood = clamp(r.mood - 3, 0, 100);
           this.addLog('food', `أكل ${meal.name} في ${place ? place.name : 'سبيل الخير'}… من غير فلوس.`, r);
-          this.think(r, pick(T.charity));
+          if (chance(0.3)) this.think(r, this.line(r, 'charity'));
         } else {
           const cost = Math.round(meal.cost * (this.mod.foodPrice || 1));
           r.money -= cost;
@@ -1805,14 +1969,14 @@ export class Sim {
           this.stats.meals++;
           r.stats.meals++;
           this.addLog('money', `دفع ${money(cost)} على ${meal.name}.`, r);
-          this.think(r, pick(['شبعت… الحمد لله.', 'الأكل هنا طعمه زي البيت.', 'القرش بيطير بسرعة…']));
+          this.think(r, this.line(r, 'ate'));
           this.payCounter(r, task, place, cost, meal.name);
           if (task.serverId) {
             const cook = this.getResident(task.serverId);
             if (cook && chance(0.5)) {
               this.talkTo(r, cook,
-                pick(TALK.customer).replace('{p}', meal.name).replace('{n}', cook.name.split(' ')[0]),
-                pick(TALK.seller).replace('{n}', r.name.split(' ')[0]));
+                this.line(r, 'customer').replace('{p}', meal.name).replace('{n}', cook.name.split(' ')[0]),
+                this.line(cook, 'seller', { partner: r }).replace('{n}', r.name.split(' ')[0]));
             }
           }
         }
@@ -1830,7 +1994,7 @@ export class Sim {
         r.powerCut = false;
         r.mood = clamp(r.mood + 5, 0, 100);
         this.addLog('money', `دفع فاتورة النور والمايه ${money(amount)}… ارتاح من القلق.`, r);
-        this.think(r, pick(['دفعت الفاتورة… باقي الإيجار.', 'نور ومايه… وباقي الشهر طويل.']));
+        this.think(r, this.line(r, 'billPaid'));
         break;
       }
       case 'rent': {
@@ -1850,7 +2014,7 @@ export class Sim {
           this.addLog('money', `حصل على إيجار ${money(amount)} من ${r.name} — شقة في ${place.name}.`, landlord);
         }
         this.addLog('money', `دفع إيجار الشقة في ${place ? place.name : 'العمارة'}: ${money(amount)}.`, r);
-        this.think(r, pick(['الإيجار اتسدد… ربنا يكرم.', 'مرت الشهر… يلا نلمّ اللي جاي.']));
+        this.think(r, this.line(r, 'rentPaid'));
         break;
       }
       case 'gig': {
@@ -1861,7 +2025,7 @@ export class Sim {
         this.stats.gigs++;
         r.mood = clamp(r.mood - 2, 0, 100);
         this.addLog('money', `خلص يومية في ${place ? place.name : 'الشارع'} وقبض ${money(earn)}.`, r);
-        this.think(r, pick(['كل قرش بشقاه… بس الحمد لله.', 'اليومية مشيت النهاردة.', 'لو الشغل ده ثابت، كنت ارتحت.']));
+        this.think(r, this.say(r, ['كل قرش بشقاه… بس الحمد لله.', 'اليومية مشيت النهاردة.', 'لو الشغل ده ثابت، كنت ارتحت.']));
         break;
       }
       case 'shop': {
@@ -1869,7 +2033,7 @@ export class Sim {
         const product = task.product || { name: 'حاجة', icon: '🛍️' };
         if (r.money < price) {
           this.addLog('money', `دخل ${place ? place.name : 'المحل'} وشاف السعر… ورجع من غير ما يشتري.`, r);
-          this.think(r, pick(['السعر غالي عليّا…', 'هستنى لحد ما الفلوس تتحسن.']));
+          this.think(r, this.say(r, ['السعر غالي عليّا…', 'هستنى لحد ما الفلوس تتحسن.']));
           r.mood = clamp(r.mood - 3, 0, 100);
           break;
         }
@@ -1893,11 +2057,11 @@ export class Sim {
           this.bumpRel(r, seller, 4);
           if (chance(0.5)) {
             this.talkTo(r, seller,
-              pick(TALK.customer).replace('{p}', product.name).replace('{n}', seller.name.split(' ')[0]),
-              pick(TALK.seller).replace('{n}', r.name.split(' ')[0]));
+              this.line(r, 'customer').replace('{p}', product.name).replace('{n}', seller.name.split(' ')[0]),
+              this.line(seller, 'seller', { partner: r }).replace('{n}', r.name.split(' ')[0]));
           }
         }
-        this.think(r, pick(['جبت الحاجة… يلا البيت.', 'باقي حاجات تانية الأسبوع الجاي.', 'كل مرة أطلع من السوق أدفع أكتر.']));
+        this.think(r, this.line(r, 'shopped'));
         break;
       }
       case 'social': {
@@ -1916,7 +2080,7 @@ export class Sim {
       case 'family': {
         r.mood = clamp(r.mood + 7, 0, 100);
         r.energy = clamp(r.energy - 4, 0, 100);
-        if (chance(0.5)) this.think(r, pick(T.family));
+        if (chance(0.5)) this.think(r, this.line(r, 'family'));
         break;
       }
       case 'buy': break;
@@ -1979,6 +2143,7 @@ export class Sim {
       r.indoors = false;
     }
     if (r.child) return this.childDecide(r);
+    if (r.homeless || !r.homeId) return this.homelessDecide(r);
     const t = this.t;
     const home = this.getPlace(r.homeId);
     const jobPlace = r.workplaceId ? this.getPlace(r.workplaceId) : null;
@@ -2005,7 +2170,7 @@ export class Sim {
 
     /* 1 — exhaustion / night */
     if (r.energy < 15) {
-      return this.goToPlace(r, home, 'sleep', { duration: 240, thought: pick(T.sleep) });
+      return this.goToPlace(r, home, 'sleep', { duration: 240, thought: this.line(r, 'sleep') });
     }
     if ((t >= 22 * 60 + 30 || t < 5 * 60 + 30) && !this.isAsleep(r)) {
       let untilMorning = Math.max(120, nextAt(this.minute, 6, 40) - this.minute);
@@ -2013,7 +2178,7 @@ export class Sim {
       if (r.thief && !r.robbedTonight && r.crimeAt && r.crimeAt > this.minute) {
         untilMorning = Math.min(untilMorning, Math.max(20, r.crimeAt - this.minute));
       }
-      return this.goToPlace(r, home, 'sleep', { duration: untilMorning, thought: pick(T.sleep), silent: true });
+      return this.goToPlace(r, home, 'sleep', { duration: untilMorning, thought: this.line(r, 'sleep'), silent: true });
     }
 
     /* 2 — work shift */
@@ -2023,17 +2188,17 @@ export class Sim {
         const dur = Math.max(25, job.end - t);
         return this.goToPlace(r, jobPlace, 'work', {
           duration: dur, wage: job.wage, shiftLen: job.end - job.start,
-          thought: pick(T.work), silent: true,
+          thought: this.line(r, 'work'), silent: true,
         });
       }
     }
 
     /* 3 — bills, then rent */
     if (r.billAmount > 0 && this.day >= r.billDue && r.money >= r.billAmount) {
-      return this.goToPlace(r, home, 'bills', { duration: 18, amount: r.billAmount, thought: pick(T.pay), silent: true });
+      return this.goToPlace(r, home, 'bills', { duration: 18, amount: r.billAmount, thought: this.line(r, 'pay'), silent: true });
     }
     if (this.day >= r.rentDue && r.money >= r.rentAmount) {
-      return this.goToPlace(r, home, 'rent', { duration: 18, amount: r.rentAmount, thought: pick(T.rent), silent: true });
+      return this.goToPlace(r, home, 'rent', { duration: 18, amount: r.rentAmount, thought: this.line(r, 'rent'), silent: true });
     }
 
     /* 4 — food */
@@ -2092,10 +2257,21 @@ export class Sim {
       return this.goToPlace(r, charity, 'eat', {
         duration: rndInt(30, 45), paid: true,
         meal: { name: 'لقمة عيش', cost: 0, hunger: 46 },
-        thought: pick(T.charity),
+        thought: this.line(r, 'charity'),
       });
     }
-    return this.goToPlace(r, this.getPlace(r.homeId), 'eat', {
+    const home = this.getPlace(r.homeId);
+    if (!home) {
+      const mosque = this.places.find(p => p.style === 'mosque') || charity;
+      if (mosque) {
+        return this.goToPlace(r, mosque, 'eat', {
+          duration: 35, paid: true, meal: { name: 'لقمة من الجامع', cost: 0, hunger: 28 },
+          thought: 'مفيش بيت ومفيش فلوس… الجامع بيسدّ.',
+        });
+      }
+      return this.wander(r);
+    }
+    return this.goToPlace(r, home, 'eat', {
       duration: 40, paid: true, meal: { name: 'حاجة في البيت', cost: 0, hunger: 30 },
       thought: 'مفيش فلوس… هدور على حاجة في البيت.',
     });
@@ -2107,7 +2283,7 @@ export class Sim {
     const byPlace = {};
     slots.forEach(s => { byPlace[s.place.id] = s.place; });
     const place = pick(Object.values(byPlace));
-    return this.goToPlace(r, place, 'jobSearch', { duration: 25, thought: pick(T.job) });
+    return this.goToPlace(r, place, 'jobSearch', { duration: 25, thought: this.line(r, 'job') });
   }
 
   gig(r) {
@@ -2116,7 +2292,7 @@ export class Sim {
     const earn = rndInt(45, 95);
     this.addLog('work', `نزل يدور على يومية في ${place.name}.`, r);
     return this.goToPlace(r, place, 'gig', {
-      duration: rndInt(90, 160), earn, thought: pick(T.gig), silent: true,
+      duration: rndInt(90, 160), earn, thought: this.line(r, 'gig'), silent: true,
     });
   }
 
@@ -2146,7 +2322,7 @@ export class Sim {
       cost,
       food: isFood ? Math.round(place.meal.hunger * 0.5) : 0,
       mood: rndInt(5, 12),
-      thought: pick(T.social),
+      thought: this.line(r, 'social'),
       silent: true,
     });
   }
@@ -2154,7 +2330,7 @@ export class Sim {
   family(r) {
     const home = this.getPlace(r.homeId);
     return this.goToPlace(r, home, 'family', {
-      duration: rndInt(60, 120), thought: pick(T.family), silent: true,
+      duration: rndInt(60, 120), thought: this.line(r, 'family'), silent: true,
     });
   }
 
@@ -2178,7 +2354,7 @@ export class Sim {
   wander(r) {
     const place = pick(this.places);
     return this.goToPlace(r, place, 'wander', {
-      duration: rndInt(20, 55), thought: pick(T.idle), silent: true,
+      duration: rndInt(20, 55), thought: this.line(r, 'idle'), silent: true,
     });
   }
 
@@ -2286,6 +2462,22 @@ export class Sim {
       rides: JSON.parse(JSON.stringify(this.rides.filter(r => r.state !== 'done'))),
       incidents: JSON.parse(JSON.stringify(this.incidents.slice(-40))),
       trafficClock: this.trafficClock,
+      mayor: {
+        treasury: this.mayor.treasury,
+        tax: { ...this.mayor.tax },
+        taxArrears: { ...this.mayor.taxArrears },
+        services: { ...this.mayor.services },
+        policeCoverage: this.mayor.policeCoverage,
+        leadership: { ...this.mayor.leadership },
+        fines: this.mayor.fines.slice(0, 40),
+        history: this.mayor.history.slice(0, 30),
+        lastCollectDay: this.mayor.lastCollectDay,
+        collectedTotal: this.mayor.collectedTotal,
+        grantedTotal: this.mayor.grantedTotal,
+        nextToken: this.mayor.nextToken,
+      },
+      timeScale: this.timeScale,
+      tutorial: this.tutorial.toJSON(),
       nextCarId: this.nextCarId,
       nextRideId: this.nextRideId,
       nextIncId: this.nextIncId,
@@ -2356,6 +2548,17 @@ export class Sim {
     this.incidents = (data.incidents || []).map(i => Object.assign({ solved: false, reported: false }, i));
     this.nextIncId = Number(data.nextIncId) || (this.incidents.reduce((m, i) => Math.max(m, i.id), 0) + 1);
     this.trafficClock = Number(data.trafficClock) || this.minute;
+    this.timeScale = Number(data.timeScale) > 0 ? Number(data.timeScale) : 1;
+    this.mayor = Object.assign(freshMayorState(), data.mayor || {});
+    this.mayor.tax = Object.assign({ resident: 0.05, business: 0.03 }, (data.mayor || {}).tax || {});
+    this.mayor.services = Object.assign({ streetlights: true, water: true, police: true }, (data.mayor || {}).services || {});
+    this.mayor.leadership = Object.assign({ roleId: 'mayor', playerHolds: true, holderId: null, aiMayor: false }, (data.mayor || {}).leadership || {});
+    this.mayor.taxArrears = Object.assign({}, (data.mayor || {}).taxArrears || {});
+    this.mayor.fines = ((data.mayor || {}).fines || []).slice();
+    this.mayor.history = ((data.mayor || {}).history || []).slice();
+    this.pendingConfirms = {};
+    this.tutorial = new TutorialEngine(data.tutorial);
+    this.applyHomeLooks();
     this.matches = [];
     this.streetGameIn = 60;
     /* كل عربية ليها ساكنها */
@@ -2379,9 +2582,10 @@ export class Sim {
 
   /* ---------- per-frame ---------- */
   update(dt) {
+    if (this.tutorial) this.tutorial.tick(this);
     if (!this.started || this.paused) return;
     const real = Math.min(dt, 0.1);
-    const simDt = real * SIM_MIN_PER_SEC * this.speed;   /* sim minutes */
+    const simDt = (real * SIM_MIN_PER_SEC * this.speed) / this.timeScale;   /* sim minutes */
     const prevDay = this.day;
     this.minute += simDt;
     this.day = dayNum(this.minute);
@@ -2422,6 +2626,15 @@ export class Sim {
     /* mood drifts to a neutral middle, then is pushed by events */
     r.mood = clamp(r.mood + (52 - r.mood) * 0.0009 * simDt, 0, 100);
     if (r.hunger > 85 || r.energy < 12) r.mood = clamp(r.mood - simDt * 0.02, 0, 100);
+    /* خدمات الحارة بتأثر على المزاج (نور الشوارع / المايه) */
+    if (this.mayor && this.mayor.services) {
+      if (this.mayor.services.streetlights === false && (this.t >= 19 * 60 || this.t < 5 * 60) && !r.indoors) {
+        r.mood = clamp(r.mood - simDt * 0.004, 0, 100);
+      }
+      if (this.mayor.services.water === false) {
+        r.mood = clamp(r.mood - simDt * 0.0025, 0, 100);
+      }
+    }
 
     /* short strolls inside a shop (stove ↔ counter) */
     if (r.micro && !r.anim && !r.indoors) {
@@ -2527,7 +2740,8 @@ export class Sim {
       if (this.day >= r.rentDue) {
         if (r.rentNotice !== r.rentDue) {
           r.rentNotice = r.rentDue;
-          this.addLog('event', `الإيجار بقى مستحق على ${r.name} (${money(r.rentAmount)}) في ${this.getPlace(r.homeId).name}.`, r);
+          const rentHome = this.getPlace(r.homeId);
+          this.addLog('event', `الإيجار بقى مستحق على ${r.name} (${money(r.rentAmount)})${rentHome ? ' في ' + rentHome.name : ''}.`, r);
         }
         if (r.money < r.rentAmount) {
           r.mood = clamp(r.mood - 3, 0, 100);
@@ -2599,6 +2813,13 @@ export class Sim {
     this.validateJobs();
     this.ensurePublicJobs();
     this.ageChildren();
+
+    /* العمدة: تحصيل/منح/إسكان — بنفس الأوامر والقيود */
+    this.aiMayorTick();
+    const arrears = Object.values(this.mayor.taxArrears).reduce((n, v) => n + v, 0);
+    if (arrears > 0 && this.day % 3 === 0) {
+      this.addLog('mayor', `فيه ${money(arrears)} ضرايب متأخرة على السكان — الخزنة مستنية.`);
+    }
 
     /* ---- يوم جديد: الحرامية بيستنوا ليل جديد، والعربيات بتركن عند البيت ---- */
     for (const r of this.residents) {
@@ -2970,7 +3191,7 @@ export class Sim {
     this.stats.goals = (this.stats.goals || 0) + 1;
     const scorer = this.getResident(pick(m.players));
     this.fx('goal', m.ball.x, m.ball.y, '⚽ جـون!');
-    if (scorer) this.think(scorer, pick(['جون! أنا هدف دلوقتي.', 'شوفتوا الكورة دي؟', 'يلا نعمل تاني!']));
+    if (scorer) this.think(scorer, this.line(scorer, 'scored'));
     if (chance(0.65)) {
       const p = this.getPlace(m.placeId);
       this.addLog('match', `جووون في ${p ? p.name : 'الشارع'}! النتيجة ${ar(m.scoreA)}–${ar(m.scoreB)}.`, scorer);
@@ -3063,7 +3284,8 @@ export class Sim {
       return false;
     }
     const victim = pick(victims);
-    const officersNear = this.officers().some(o => Math.hypot(o.x - home.door.x, o.y - home.door.y) < 260 && o.onDuty);
+    const coverage = this.mayor.policeCoverage || 'normal';
+    const officersNear = this.officers().some(o => Math.hypot(o.x - home.door.x, o.y - home.door.y) < (coverage === 'high' ? 420 : coverage === 'low' ? 150 : 260) && o.onDuty);
     const security = this.homeSecurity(home);
     const busted = chance(0.03 + security * 0.05 + (officersNear ? 0.55 : 0));
     const amount = Math.min(victim.money, rndInt(70, 240));
@@ -3088,7 +3310,7 @@ export class Sim {
     });
     this.addLog('crime', `🚨 سرقة في ${home.name}: حد دخل على ${victim.name} وخد ${money(amount)} من الشقة.`,
       thief);
-    this.think(victim, pick(['حاجتي اتسرقت… مين دخل البيت؟', 'الفلوس اللي كنت بجمعها… راحت.', 'لازم أبلغ القسم حالًا.']));
+    this.think(victim, this.line(victim, 'robbed'));
     if (witnesses.length) {
       this.addLog('police', `شهود: ${witnesses.map(w => w.name).join('، ')} شافوا حاجة غريبة حوالين ${home.name}.`, witnesses[0]);
       inc.reported = true;
@@ -3125,7 +3347,7 @@ export class Sim {
       caught: false, witnesses, at: this.minute, x: thief.x, y: thief.y,
     });
     this.addLog('crime', `🚨 ${victim.name} اتحايل عليه في الشارع — حد خد منه ${money(amount)} وجري.`, victim);
-    this.think(victim, pick(['حسبي الله ونعم الوكيل…', 'الشارع بقى خطر بالليل.', 'لازم أبلغ الشرطة.']));
+    this.think(victim, this.line(victim, 'mugged'));
     if (witnesses.length) {
       inc.reported = true;
       inc.reportedAt = this.minute;
@@ -3175,6 +3397,9 @@ export class Sim {
   dispatchOfficer(inc) {
     const station = this.policeStation();
     if (!station) return null;
+    if (this.mayor.services && this.mayor.services.police === false) return null;
+    /* تغطية خفيفة = دوريات أقل */
+    if (this.mayor.policeCoverage === 'low' && chance(0.45)) return null;
     const free = this.officers().filter(o => !this.isLockedUp(o) && (!o.task || o.task.kind !== 'investigate'));
     if (!free.length) return null;
     free.sort((a, b) => Math.hypot(a.x - station.door.x, a.y - station.door.y) - Math.hypot(b.x - station.door.x, b.y - station.door.y));
@@ -3231,7 +3456,7 @@ export class Sim {
     inc.cold = true;
     inc.solved = false;
     this.addLog('police', `الشرطة عملت معاينة في ${this.getPlace(inc.homeId) ? this.getPlace(inc.homeId).name : 'مكان الجريمة'}… مفيش دليل واضح، القضية اتأجلت.`, officer);
-    if (officer) this.think(officer, pick(['مفيش شهود… صعب نلاقي حد.', 'الحرامي عارف يغطي آثاره.', 'لو الشارع فيه كاميرات، كنا خلصنا.']));
+    if (officer) this.think(officer, this.line(officer, 'officerCase'));
     return false;
   }
 
@@ -3264,6 +3489,611 @@ export class Sim {
   }
 
   /* ============================================================
+     العمدة: إدارة الحارة (ضرايب، خزنة، إسكان، غرامات، خدمات)
+     كل حاجة بتمر من نفس الأوامر والصلاحيات — للّاعب وللعمدة الآلي
+     ============================================================ */
+  mayorRole() { return MAYOR_ROLES[this.mayor.leadership.roleId] || null; }
+
+  hasPermission(perm) {
+    const role = this.mayorRole();
+    return !!(role && role.permissions.includes(perm));
+  }
+
+  leaderLabel() {
+    if (this.mayor.leadership.playerHolds) return 'انت (الخالق)';
+    const r = this.getResident(this.mayor.leadership.holderId);
+    return r ? r.name : 'مجلس الحارة';
+  }
+
+  /* دخل الساكن التقريبي في اليوم */
+  incomeOf(r) {
+    if (!r) return 0;
+    if (r.child) return 0;
+    if (r.jobTitle) {
+      const place = this.getPlace(r.workplaceId);
+      const job = place && place.jobs && r.jobIndex >= 0 ? place.jobs[r.jobIndex] : null;
+      if (job && job.wage) return job.wage;
+      return 120;
+    }
+    return 70;
+  }
+
+  taxDueOf(r) { return Math.max(0, Math.round(this.incomeOf(r) * (this.mayor.tax.resident || 0))); }
+
+  homeOf(r) { return r && r.homeId ? this.getPlace(r.homeId) : null; }
+
+  homelessResidents() {
+    return this.residents.filter(r => !r.child && (!r.homeId || r.homeless));
+  }
+
+  /* ساكن في بيت مش بتاعه؟ (متطفّل) */
+  isIllegalOccupant(r) {
+    if (!r) return false;
+    if (r.squatting) return true;
+    const home = this.homeOf(r);
+    if (!home || home.kind !== 'home') return false;
+    const hh = this.householdOf(r);
+    if (hh) return hh.homeId !== home.id;
+    return false;
+  }
+
+  violationsOf(r) {
+    const out = [];
+    if (!r) return out;
+    const home = this.homeOf(r);
+    if (this.isIllegalOccupant(r)) {
+      out.push({ code: 'trespass', label: 'ساكن بدون حق', detail: home ? `في ${home.name}` : 'بلا سكن' });
+    }
+    if (!r.homeId && !r.child) out.push({ code: 'homeless', label: 'بلا مأوى', detail: 'محتاج سكن' });
+    if ((this.mayor.taxArrears[r.id] || 0) > 0) {
+      out.push({ code: 'tax-arrears', label: 'ضرايب متأخرة', detail: money(this.mayor.taxArrears[r.id]) });
+    }
+    if (home && r.rentDue <= this.day && r.money < (r.rentAmount || 0)) {
+      out.push({ code: 'rent-arrears', label: 'إيجار متأخر', detail: money(r.rentAmount || 0) });
+    }
+    const unpaidFines = this.mayor.fines.filter(f => f.rid === r.id && f.left > 0);
+    if (unpaidFines.length) {
+      out.push({ code: 'fines', label: 'غرامات غير مدفوعة', detail: money(unpaidFines.reduce((n, f) => n + f.left, 0)) });
+    }
+    if ((r.record || 0) > 0) out.push({ code: 'record', label: 'سابقة', detail: `${ar(r.record)} في القسم` });
+    return out;
+  }
+
+  /* ---------- أوامر العمدة ---------- */
+  command(id, args = {}, opts = {}) {
+    const cmd = MAYOR_COMMANDS[id];
+    if (!cmd) return { ok: false, reason: 'أمر غير معروف' };
+    if (!this.hasPermission(cmd.permission)) {
+      return { ok: false, reason: 'الأمر ده مش من صلاحياتك دلوقتي' };
+    }
+    if (cmd.confirm && !args.confirm && !opts.ai) {
+      const preview = this.commandPreview(id, args);
+      if (!preview.ok) return preview;
+      const token = this.mayor.nextToken++;
+      this.pendingConfirms = this.pendingConfirms || {};
+      this.pendingConfirms[token] = { id, args, at: this.minute };
+      this.pruneConfirms();
+      return { ok: false, needsConfirm: true, token, preview: preview.text, danger: !!cmd.danger };
+    }
+    if (!opts.ai && args.confirm && args.token != null) {
+      const pending = (this.pendingConfirms || {})[args.token];
+      if (!pending || pending.id !== id) return { ok: false, reason: 'التأكيد مش صالح — جرّب تاني' };
+      delete this.pendingConfirms[args.token];
+      if (this.minute - pending.at > CONFIRM_TTL) return { ok: false, reason: 'التأكيد قديم — جرّب تاني' };
+    }
+    return this.runCommand(id, args, opts);
+  }
+
+  pruneConfirms() {
+    if (!this.pendingConfirms) return;
+    const cutoff = this.minute - CONFIRM_TTL;
+    for (const [token, p] of Object.entries(this.pendingConfirms)) {
+      if (p.at < cutoff) delete this.pendingConfirms[token];
+    }
+  }
+
+  /* معاينة قبل التنفيذ: نص واضح للمستخدم + تحقق مبكر */
+  commandPreview(id, args) {
+    const who = args.residentId ? this.getResident(args.residentId) : null;
+    switch (id) {
+      case 'tax.set': {
+        const rd = Number(args.resident);
+        const bd = Number(args.business);
+        if (!isFinite(rd) || !isFinite(bd)) return { ok: false, reason: 'نسبة غير صالحة' };
+        if (rd < TAX_LIMITS.resident[0] || rd > TAX_LIMITS.resident[1]) return { ok: false, reason: `ضريبة السكان لازم بين ٠٪ و${ar(Math.round(TAX_LIMITS.resident[1] * 100))}٪` };
+        if (bd < TAX_LIMITS.business[0] || bd > TAX_LIMITS.business[1]) return { ok: false, reason: `ضريبة الأنشطة لازم بين ٠٪ و${ar(Math.round(TAX_LIMITS.business[1] * 100))}٪` };
+        return { ok: true, text: `تحويل ضريبة السكان من ${ar(Math.round(this.mayor.tax.resident * 100))}٪ لـ${ar(Math.round(rd * 100))}٪، والأنشطة من ${ar(Math.round(this.mayor.tax.business * 100))}٪ لـ${ar(Math.round(bd * 100))}٪؟` };
+      }
+      case 'treasury.grant': {
+        if (!who) return { ok: false, reason: 'اختار ساكن' };
+        const amount = Math.round(Number(args.amount));
+        if (!isFinite(amount) || amount <= 0) return { ok: false, reason: 'المبلغ لازم يكون أكبر من صفر' };
+        if (amount > this.mayor.treasury) return { ok: false, reason: `الخزنة فيها ${money(this.mayor.treasury)} بس` };
+        return { ok: true, text: `منح ${money(amount)} من خزنة الحارة لـ${who.name}؟` };
+      }
+      case 'housing.evict': {
+        if (!who) return { ok: false, reason: 'اختار ساكن' };
+        const home = this.homeOf(who);
+        if (!home) return { ok: false, reason: `${who.name} مش ساكن في بيت` };
+        return { ok: true, text: `طرد ${who.name} من ${home.name}؟` };
+      }
+      case 'housing.reassign': {
+        if (!who) return { ok: false, reason: 'اختار ساكن' };
+        const target = this.getPlace(args.homeId);
+        if (!target || target.kind !== 'home') return { ok: false, reason: 'اختار بيت' };
+        return { ok: true, text: `نقل ${who.name} من ${this.homeOf(who) ? this.homeOf(who).name : 'بلا مأوى'} لـ${target.name}؟` };
+      }
+      case 'resident.fine': {
+        if (!who) return { ok: false, reason: 'اختار ساكن' };
+        const amount = Math.round(Number(args.amount));
+        if (!isFinite(amount) || amount <= 0) return { ok: false, reason: 'الغرامة لازم تكون أكبر من صفر' };
+        if (amount > FINE_LIMIT) return { ok: false, reason: `أقصى غرامة ${money(FINE_LIMIT)}` };
+        return { ok: true, text: `غرامة ${money(amount)} على ${who.name}${args.reason ? ' — ' + args.reason : ''}؟` };
+      }
+      case 'resident.removeTrespasser': {
+        if (!who) return { ok: false, reason: 'اختار ساكن' };
+        const home = this.homeOf(who);
+        return { ok: true, text: `إخراج ${who.name} من ${home ? home.name : 'البيت'}؟` };
+      }
+      default:
+        return { ok: true, text: MAYOR_COMMANDS[id].label };
+    }
+  }
+
+  runCommand(id, args = {}, opts = {}) {
+    switch (id) {
+      case 'tax.set': return this.opSetTax(args);
+      case 'treasury.collect': return this.opCollectTaxes(args);
+      case 'treasury.grant': return this.opGrant(args);
+      case 'housing.evict': return this.opEvict(args);
+      case 'housing.reassign': return this.opReassign(args);
+      case 'housing.rentals': return this.opRentals(args);
+      case 'resident.fine': return this.opFine(args);
+      case 'resident.removeTrespasser': return this.opRemoveTrespasser(args);
+      case 'service.toggle': return this.opService(args);
+      case 'police.coverage': return this.opCoverage(args);
+      case 'leader.auto': return this.opLeaderAuto(args);
+      default: return { ok: false, reason: 'أمر غير معروف' };
+    }
+  }
+
+  mayorLog(text, r = null) {
+    this.mayor.history.unshift({ day: this.day, minute: this.minute, text });
+    if (this.mayor.history.length > 60) this.mayor.history.pop();
+    this.addLog('mayor', `🏛️ ${text}`, r);
+  }
+
+  opSetTax(args) {
+    const rd = Number(args.resident);
+    const bd = Number(args.business);
+    const chk = this.commandPreview('tax.set', args);
+    if (!chk.ok) return chk;
+    this.mayor.tax.resident = rd;
+    this.mayor.tax.business = bd;
+    this.mayorLog(`العمدة (${this.leaderLabel()}) ظبط الضرايب: سكان ${ar(Math.round(rd * 100))}٪، أنشطة ${ar(Math.round(bd * 100))}٪.`);
+    return { ok: true, tax: { ...this.mayor.tax } };
+  }
+
+  opCollectTaxes() {
+    let paid = 0, owed = 0, people = 0;
+    for (const r of this.residents) {
+      if (r.child) continue;
+      const base = this.taxDueOf(r);
+      const arrears = this.mayor.taxArrears[r.id] || 0;
+      const due = base + arrears;
+      if (due <= 0) continue;
+      const can = Math.min(r.money, due);
+      if (can > 0) {
+        r.money -= can;
+        r.stats.spent += can;
+        this.mayor.treasury += can;
+        paid += can;
+        people++;
+        if (can < due) {
+          const rest = due - can;
+          this.mayor.taxArrears[r.id] = rest;
+          owed += rest;
+        } else {
+          delete this.mayor.taxArrears[r.id];
+        }
+      } else {
+        this.mayor.taxArrears[r.id] = due;
+        owed += due;
+      }
+    }
+    /* ضريبة أنشطة على المحلات اللي ليها صاحب */
+    for (const p of this.places) {
+      if (!p.ownerId) continue;
+      const owner = this.getResident(p.ownerId);
+      if (!owner || !(p.salesToday > 0)) continue;
+      const due = Math.round(p.salesToday * (this.mayor.tax.business || 0));
+      if (due <= 0) continue;
+      const can = Math.min(owner.money, due);
+      owner.money -= can;
+      owner.stats.spent += can;
+      this.mayor.treasury += can;
+      paid += can;
+      if (can < due) this.mayor.taxArrears[owner.id] = (this.mayor.taxArrears[owner.id] || 0) + (due - can);
+    }
+    this.mayor.lastCollectDay = this.day;
+    this.mayor.collectedTotal += paid;
+    if (paid > 0) {
+      this.mayorLog(`تحصيل ضرايب: ${money(paid)} دخلت خزنة الحارة من ${ar(people)} ساكن${owed > 0 ? ` — فاضل ${money(owed)} متأخر` : ''}.`);
+      this.stats.taxes = (this.stats.taxes || 0) + paid;
+    } else {
+      this.addLog('mayor', 'مفيش ضرايب اتحصّلت النهاردة — مفيش حد معاه فلوس.');
+    }
+    return { ok: true, paid, owed, people, treasury: this.mayor.treasury };
+  }
+
+  opGrant(args) {
+    const r = this.getResident(args.residentId);
+    if (!r) return { ok: false, reason: 'الساكن مش موجود' };
+    const amount = Math.round(Number(args.amount));
+    if (!isFinite(amount) || amount <= 0) return { ok: false, reason: 'المبلغ لازم يكون أكبر من صفر' };
+    if (amount > this.mayor.treasury) return { ok: false, reason: `الخزنة فيها ${money(this.mayor.treasury)} بس — مفيش فلوس كفاية` };
+    if (amount > GRANT_LIMIT_NEEDS_CONFIRM && !args.confirm && !args.ai) {
+      return { ok: false, needsConfirm: true, reason: `منحة كبيرة (${money(amount)}) محتاجة تأكيد` };
+    }
+    this.mayor.treasury -= amount;
+    r.money += amount;
+    r.stats.earned += amount;
+    r.mood = clamp(r.mood + 6, 0, 100);
+    this.mayor.grantedTotal += amount;
+    this.mayorLog(`منحة ${money(amount)} لـ${r.name} من خزنة الحارة (فاضل ${money(this.mayor.treasury)}).`, r);
+    return { ok: true, amount, treasury: this.mayor.treasury };
+  }
+
+  moveResidentTo(r, home, rentDueIn = 7) {
+    if (!r || !home) return false;
+    const wasHome = r.homeId;
+    r.homeId = home.id;
+    r.homeless = false;
+    r.squatting = false;
+    if (wasHome !== home.id && !r.child) this.stats.housed++;
+    r.flatNo = this.households.filter(h => h.homeId === home.id).length + 1;
+    if (!r.child) {
+      r.rentAmount = Math.round((home.rent || 260) / (r.spouseId ? 2 : 1.6));
+      r.rentDue = this.day + rentDueIn;
+      r.rentNotice = 0;
+    }
+    const car = this.carOf(r);
+    if (car) { car.parkedAt = home.id; car.parkAt = this.parkingSpot(home); }
+    return true;
+  }
+
+  detachFromHome(r) {
+    const hh = this.householdOf(r);
+    const home = this.homeOf(r);
+    if (hh) {
+      /* العيلة كلها بتتحرك مع بعض */
+      for (const id of hh.members) {
+        const m = this.getResident(id);
+        if (m) { m.homeId = null; }
+      }
+      const kids = (hh.kids || []).map(id => this.getResident(id)).filter(Boolean);
+      for (const k of kids) k.homeId = null;
+      if (home && Array.isArray(home.households)) home.households = home.households.filter(hid => hid !== hh.id);
+      hh.homeId = null;
+      return { household: hh, members: [...hh.members.map(id => this.getResident(id)).filter(Boolean), ...kids] };
+    }
+    if (home && Array.isArray(home.households)) {
+      /* لو فرد: نتأكد إنه مش مسجل في عيلة */
+      r.householdId = null;
+    }
+    r.homeId = null;
+    return { household: null, members: [r] };
+  }
+
+  opEvict(args) {
+    const r = this.getResident(args.residentId);
+    if (!r) return { ok: false, reason: 'الساكن مش موجود' };
+    if (r.child) return { ok: false, reason: 'الطفل مايتطردش لوحده — بيخرج مع أهله' };
+    if (this.mayor.leadership.holderId === r.id) return { ok: false, reason: 'مينفعش تطرد العمدة نفسه' };
+    const home = this.homeOf(r);
+    if (!home || home.kind !== 'home') return { ok: false, reason: `${r.name} مش ساكن في بيت` };
+
+    const hh = this.householdOf(r);
+    const otherHouseholds = this.households.filter(h => h.homeId === home.id && (!hh || h.id !== hh.id));
+    const isLast = otherHouseholds.length === 0;
+
+    let replacement = args.replacementId ? this.getResident(args.replacementId) : null;
+    if (replacement) {
+      if (replacement.homeId === home.id) return { ok: false, reason: `${replacement.name} ساكن في نفس البيت` };
+      if (this.householdOf(replacement)) return { ok: false, reason: 'البديل لازم يكون فرد لوحده مش عيلة' };
+    }
+
+    if (isLast && !replacement && !args.allowVacant) {
+      const waiting = this.homelessResidents().filter(x => x !== r);
+      return {
+        ok: false,
+        reason: waiting.length
+          ? 'ده آخر بيت في العمارة — اختار بديل من اللي بيدوروا على سكن'
+          : 'ده آخر بيت في العمارة — مفيش بديل متاح، مينفعش نسيب البيت فاضي',
+      };
+    }
+
+    const vacants = this.freeFlats().filter(p => p.id !== home.id);
+    const moved = this.detachFromHome(r);
+    const members = moved.members.filter(Boolean);
+
+    if (vacants.length) {
+      const target = pick(vacants);
+      const hh2 = moved.household;
+      if (hh2) {
+        hh2.homeId = target.id;
+        target.households = target.households || [];
+        if (!target.households.includes(hh2.id)) target.households.push(hh2.id);
+        for (const m of members) { this.moveResidentTo(m, target); m.householdId = hh2.id; }
+        this.mayorLog(`طرد ${r.name}${hh2.members.length > 1 ? ' وعيلته' : ''} من ${home.name} ونقلهم لـ${target.name}.`, r);
+      } else {
+        this.moveResidentTo(r, target);
+        this.mayorLog(`طرد ${r.name} من ${home.name} ونقله لـ${target.name}.`, r);
+      }
+    } else {
+      for (const m of members) {
+        m.homeless = true;
+        m.homeId = null;
+        m.rentDue = 9999;
+        m.mood = clamp(m.mood - 12, 0, 100);
+      }
+      this.mayorLog(`طرد ${r.name}${members.length > 1 ? ' وعيلته' : ''} من ${home.name} — بقوا بلا مأوى.`, r);
+    }
+
+    if (replacement) {
+      this.moveResidentTo(replacement, home);
+      if (!this.households.some(h => h.homeId === home.id)) {
+        home.households = home.households || [];
+      }
+      this.mayorLog(`${replacement.name} سكن في ${home.name} بعد الطرد.`, replacement);
+    }
+    this.stats.evictions = (this.stats.evictions || 0) + 1;
+    return { ok: true, homeless: !vacants.length, replacementId: replacement ? replacement.id : null };
+  }
+
+  opReassign(args) {
+    const r = this.getResident(args.residentId);
+    if (!r) return { ok: false, reason: 'الساكن مش موجود' };
+    const target = this.getPlace(args.homeId);
+    if (!target || target.kind !== 'home') return { ok: false, reason: 'اختار بيت موجود' };
+    if (r.homeId === target.id) return { ok: false, reason: `${r.name} ساكن في البيت ده بالفعل` };
+    if (target.rentalsOpen === false) {
+      /* العمدة يقدر يفتح الإيجار قبل النقل */
+      return { ok: false, reason: `الإيجار مقفول في ${target.name} — افتحه الأول` };
+    }
+    const hh = this.householdOf(r);
+    const need = hh ? 1 : 1;
+    if (this.freeFlatsIn(target) < need) return { ok: false, reason: `${target.name} مليان — مفيش شقة فاضية` };
+    if (this.isIllegalOccupant(r)) { /* بنصلّح وضعه */ }
+
+    const oldHome = this.homeOf(r);
+    const moved = this.detachFromHome(r);
+    const members = moved.members.filter(Boolean);
+    if (moved.household) {
+      moved.household.homeId = target.id;
+      target.households = target.households || [];
+      if (!target.households.includes(moved.household.id)) target.households.push(moved.household.id);
+      for (const m of members) { this.moveResidentTo(m, target); m.householdId = moved.household.id; }
+    } else {
+      this.moveResidentTo(r, target);
+    }
+    this.mayorLog(`نقل ${r.name}${moved.household ? ' وعيلته' : ''} من ${oldHome ? oldHome.name : 'بلا مأوى'} لـ${target.name}.`, r);
+    return { ok: true, homeId: target.id };
+  }
+
+  opRentals(args) {
+    const home = this.getPlace(args.homeId);
+    if (!home || home.kind !== 'home') return { ok: false, reason: 'اختار بيت' };
+    const open = args.open !== false;
+    home.rentalsOpen = open;
+    this.mayorLog(open
+      ? `فتح إيجار الشقق الفاضية في ${home.name}.`
+      : `قفل إيجار الشقق في ${home.name} — مفيش ساكن جديد هيدخل.`);
+    return { ok: true, open };
+  }
+
+  opFine(args) {
+    const r = this.getResident(args.residentId);
+    if (!r) return { ok: false, reason: 'الساكن مش موجود' };
+    const amount = Math.round(Number(args.amount));
+    if (!isFinite(amount) || amount <= 0) return { ok: false, reason: 'الغرامة لازم تكون أكبر من صفر' };
+    if (amount > FINE_LIMIT) return { ok: false, reason: `أقصى غرامة ${money(FINE_LIMIT)}` };
+    const pay = Math.min(r.money, amount);
+    r.money -= pay;
+    r.stats.spent += pay;
+    this.mayor.treasury += pay;
+    const left = amount - pay;
+    this.mayor.fines.unshift({ rid: r.id, amount, paid: pay, left, reason: args.reason || 'مخالفة', day: this.day });
+    if (this.mayor.fines.length > 60) this.mayor.fines.pop();
+    if (left > 0) this.mayor.taxArrears[r.id] = (this.mayor.taxArrears[r.id] || 0) + left;
+    r.mood = clamp(r.mood - 6, 0, 100);
+    this.stats.fines = (this.stats.fines || 0) + amount;
+    this.mayorLog(`غرامة ${money(amount)} على ${r.name}${args.reason ? ' — ' + args.reason : ''}${left > 0 ? ` (دفع ${money(pay)} وفاضل ${money(left)})` : ''}.`, r);
+    return { ok: true, paid: pay, left };
+  }
+
+  opRemoveTrespasser(args) {
+    const r = this.getResident(args.residentId);
+    if (!r) return { ok: false, reason: 'الساكن مش موجود' };
+    if (!this.isIllegalOccupant(r)) return { ok: false, reason: `${r.name} ساكن بشكل قانوني — مفيش مخالفة` };
+    const home = this.homeOf(r);
+    const hh = this.householdOf(r);
+    if (hh && hh.homeId && hh.homeId !== (home && home.id)) {
+      /* بيرجع لبيت عيلته */
+      const target = this.getPlace(hh.homeId);
+      r.squatting = false;
+      r.homeless = false;
+      r.homeId = hh.homeId;
+      this.mayorLog(`إخراج ${r.name} من ${home ? home.name : 'بيت مش بتاعه'} ورجّعه لبيته ${target ? target.name : ''}.`, r);
+      return { ok: true, toHomeId: hh.homeId };
+    }
+    r.squatting = false;
+    r.homeId = null;
+    r.homeless = true;
+    r.mood = clamp(r.mood - 10, 0, 100);
+    this.mayorLog(`إخراج ${r.name} من ${home ? home.name : 'البيت'} — كان ساكن بدون حق.`, r);
+    return { ok: true, homeless: true };
+  }
+
+  opService(args) {
+    const key = args.service;
+    if (!SERVICES[key]) return { ok: false, reason: 'الخدمة دي مش موجودة' };
+    const on = args.on !== false;
+    this.mayor.services[key] = on;
+    this.mayorLog(`${on ? 'تشغيل' : 'إيقاف'} خدمة ${SERVICES[key]} في الحارة.`);
+    return { ok: true, service: key, on };
+  }
+
+  opLeaderAuto(args) {
+    const on = args.on === true || args.on === '1';
+    this.mayor.leadership.aiMayor = on;
+    this.mayorLog(on
+      ? 'اتفعّل العمدة الآلي — هيدير الضرايب والإسكان بنفس القواعد.'
+      : 'اتوقف العمدة الآلي — القرارات بقت بإيدك.');
+    return { ok: true, aiMayor: on };
+  }
+
+  opCoverage(args) {
+    const level = args.level;
+    if (!COVERAGE_LEVELS.includes(level)) return { ok: false, reason: 'مستوى تغطية غير معروف' };
+    this.mayor.policeCoverage = level;
+    const officers = this.officers().length;
+    this.mayorLog(`تغطية الشرطة بقت ${COVERAGE_LABEL[level]} (${ar(officers)} ظابط في القسم).`);
+    return { ok: true, level };
+  }
+
+  tutorialSnapshot() { return this.tutorial.snapshot(); }
+  tutorialStart() { return this.tutorial.start().snapshot(); }
+  tutorialNext() { return (this.tutorial.next(), this.tutorial.snapshot()); }
+  tutorialSkip() { this.tutorial.skip(); return this.tutorial.snapshot(); }
+  tutorialPause(on = true) { this.tutorial.pause(on); return this.tutorial.snapshot(); }
+  tutorialRestart() { this.tutorial.restart(); return this.tutorial.snapshot(); }
+  tutorialFlag(k, v = true) { this.tutorial.flag(k, v); return this.tutorial.snapshot(); }
+
+  /* ---------- تقرير الحارة للعمدة ---------- */
+  mayorReport() {
+    const rows = this.residents.filter(r => !r.child).map(r => ({
+      id: r.id,
+      name: r.name,
+      homeId: r.homeId || null,
+      home: this.homeOf(r) ? this.homeOf(r).name : 'بلا مأوى',
+      job: r.jobTitle || 'بدون شغل',
+      income: this.incomeOf(r),
+      money: Math.round(r.money),
+      taxDue: this.taxDueOf(r) + (this.mayor.taxArrears[r.id] || 0),
+      rent: r.rentAmount || 0,
+      rentDueDay: r.rentDue,
+      violations: this.violationsOf(r),
+      homeless: !r.homeId,
+    }));
+    return {
+      treasury: Math.round(this.mayor.treasury),
+      tax: { ...this.mayor.tax },
+      services: { ...this.mayor.services },
+      policeCoverage: this.mayor.policeCoverage,
+      leader: this.leaderLabel(),
+      aiMayor: !!this.mayor.leadership.aiMayor,
+      playerHolds: !!this.mayor.leadership.playerHolds,
+      role: this.mayorRole() ? this.mayorRole().name : '—',
+      permissions: this.mayorRole() ? this.mayorRole().permissions.slice() : [],
+      collectedTotal: Math.round(this.mayor.collectedTotal),
+      grantedTotal: Math.round(this.mayor.grantedTotal),
+      arrears: Math.round(Object.values(this.mayor.taxArrears).reduce((n, v) => n + v, 0)),
+      residents: rows,
+      homeless: this.homelessResidents().map(r => ({ id: r.id, name: r.name })),
+      homes: this.places.filter(p => p.kind === 'home').map(h => ({
+        id: h.id, name: h.name, free: this.freeFlatsIn(h),
+        households: this.households.filter(x => x.homeId === h.id).length,
+        rentalsOpen: h.rentalsOpen !== false,
+        tenants: this.residents.filter(r => r.homeId === h.id && !r.child).length,
+      })),
+      history: this.mayor.history.slice(0, 12),
+      violations: rows.reduce((n, r) => n + r.violations.filter(v => v.code !== 'record').length, 0),
+    };
+  }
+
+  /* ---------- العمدة الآلي: نفس الأوامر ونفس القيود ---------- */
+  aiMayorTick() {
+    if (!this.mayor.leadership.aiMayor) return null;
+    const done = [];
+    const m = this.mayor;
+
+    /* ١) تحصيل الضرايب كل يوم */
+    if (this.hasPermission('treasury.collect') && m.tax.resident > 0) {
+      const res = this.command('treasury.collect', {}, { ai: true });
+      if (res.ok) done.push('collect');
+    }
+    /* ٢) لو الخزنة فاضية والضرايب واطية → يرفعها شوية (في الحدود) */
+    if (this.hasPermission('tax.set') && m.treasury < 200 && m.tax.resident < 0.08) {
+      const next = Math.min(TAX_LIMITS.resident[1], Math.round((m.tax.resident + 0.02) * 100) / 100);
+      const res = this.command('tax.set', { resident: next, business: m.tax.business }, { ai: true });
+      if (res.ok) done.push('tax-up');
+    }
+    /* ٣) مساعدة الغلابة من الخزنة (بحد أقصى مرتين في اليوم) */
+    if (this.hasPermission('treasury.grant') && m.treasury > 400) {
+      const needy = this.residents.filter(r => !r.child && r.money < 40).slice(0, 2);
+      for (const r of needy) {
+        const amount = Math.min(80, Math.floor(m.treasury / 2));
+        if (amount <= 0) break;
+        const res = this.command('treasury.grant', { residentId: r.id, amount }, { ai: true });
+        if (res.ok) done.push('grant:' + r.id);
+      }
+    }
+    /* ٤) إسكان اللي بلا مأوى في الشقق الفاضية */
+    if (this.hasPermission('housing.reassign')) {
+      const waiting = this.homelessResidents();
+      const vacant = this.places.filter(p => p.kind === 'home' && p.rentalsOpen !== false && this.freeFlatsIn(p) > 0);
+      for (const r of waiting.slice(0, 2)) {
+        const target = vacant.find(h => h.id !== r.homeId);
+        if (!target) break;
+        const res = this.command('housing.reassign', { residentId: r.id, homeId: target.id }, { ai: true });
+        if (res.ok) done.push('house:' + r.id);
+      }
+    }
+    /* ٥) متطفّل في بيت؟ يتشال */
+    if (this.hasPermission('resident.removeTrespasser')) {
+      const squatter = this.residents.find(r => this.isIllegalOccupant(r));
+      if (squatter) {
+        const res = this.command('resident.removeTrespasser', { residentId: squatter.id }, { ai: true });
+        if (res.ok) done.push('trespass:' + squatter.id);
+      }
+    }
+    return done;
+  }
+
+  /* ساكن بقى بلا مأوى: بيدور على سكن، وبينام في الجامع/السبيل، وساعات بيتطفّل */
+  homelessDecide(r) {
+    const charity = this.places.find(p => p.kind === 'charity');
+    const mosque = this.places.find(p => p.style === 'mosque');
+    const free = this.places.filter(p => p.kind === 'home' && p.rentalsOpen !== false && this.freeFlatsIn(p) > 0);
+    if (free.length && r.money >= (free[0].rent || 260)) {
+      const target = pick(free);
+      this.moveResidentTo(r, target);
+      this.addLog('home', `${r.name} لقي شقة في ${target.name} وسكن تاني.`, r);
+      this.think(r, this.line(r, 'movedOut'));
+      return true;
+    }
+    if (r.money > 60 && chance(0.25)) return this.searchJob(r);
+    /* تطفّل على شقة فاضية — العمدة ممكن يشيله */
+    if (free.length && chance(0.18)) {
+      const target = pick(free);
+      r.homeId = target.id;
+      r.squatting = true;
+      this.addLog('event', `${r.name} دخل يسكن في ${target.name} من غير إيجار ولا ورق… الناس بتتكلم.`, r);
+      return this.goToPlace(r, target, 'sleep', { duration: rndInt(120, 240), silent: true });
+    }
+    const night = this.t >= 21 * 60 || this.t < 6 * 60;
+    const shelter = charity || mosque;
+    if (night && shelter) {
+      return this.goToPlace(r, shelter, 'sleep', {
+        duration: rndInt(180, 300), silent: true,
+        thought: this.line(r, 'idle'),
+      });
+    }
+    return this.wander(r);
+  }
+
+  /* ============================================================
      العربيات والمشاوير
      ============================================================ */
   dealership() { return this.getPlace('dealer'); }
@@ -3274,8 +4104,15 @@ export class Sim {
 
   parkingSpot(home) {
     if (!home) return { x: 120, y: 200 };
-    const n = this.cars.filter(c => c.parkAt && Math.abs(c.parkAt.y - home.door.y) < 40).length;
-    return { x: home.door.x - 46 + (n % 3) * 22, y: home.door.y + 30 };
+    const n = this.cars.filter(c => c.parkAt && Math.abs(c.parkAt.y - (home.y + home.h)) < 26).length;
+    /* بنوقف العربية في الفراغ تحت العمارة — مش على عمارة تانية */
+    let y = home.y + home.h + 8;
+    const clash = (yy, xx) => this.places.some(q => q !== home && q.kind !== 'land' &&
+      xx > q.x - 12 && xx < q.x + q.w + 12 && yy > q.y - 6 && yy < q.y + q.h - 4);
+    let x = home.door.x - 40 + (n % 3) * 20;
+    for (let k = 0; k < 4 && clash(y, x); k++) x = home.x + 14 + k * 26;
+    if (clash(y, x)) y = home.y + home.h - 11;   /* آخر حل: يلزق في القاعدة */
+    return { x: Math.round(x), y: Math.round(y) };
   }
 
   buyCar(owner, modelId, opts = {}) {
@@ -3317,10 +4154,10 @@ export class Sim {
         nextDay: this.day + 1, missed: 0,
       };
       this.addLog('money', `${owner.name} حجز ${model.name} بالتقسيط — دفع مقدم ${money(down)} وفاضل ${money(rest)} على ${ar(CAR_INSTALL_MONTHS)} شهور.`, owner);
-      this.think(owner, pick(['قسط كل شهر… بس العربية بقت تحت البيت.', 'المقدم دفعته، والباقي على ربنا.', 'كل يوم جنيه في العربية أحسن من مشي في الشمس.']));
+      this.think(owner, this.line(owner, 'carInstallment'));
     } else {
       this.addLog('money', `${owner.name} اشترى عربية ${model.name} من المعرض بـ${money(model.price)} — نمرة ${car.plate}.`, owner);
-      this.think(owner, pick(['أخيراً بقى معايا عربية…', 'أول مرة أسوق حاجة باسمي.', 'العربية دي هتوفر عليّا مشاوير كتير.']));
+      this.think(owner, this.line(owner, 'newCar'));
     }
     this.toast(`${owner.name.split(' ')[0]} اشترى عربية`);
     return { ok: true, car, installment: rest > 0 };
