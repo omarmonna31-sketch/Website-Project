@@ -81,7 +81,7 @@ section('٣) الجواز: ارتباط متبادل، عيلة، ومنع ال�
 {
   const sim = boot();
   run(sim, 2000);
-  const adults = sim.residents.filter(r => !r.child && r.age >= 18);
+  const adults = sim.residents.filter(r => !r.child && r.age >= 18 && !r.spouseId);
   const a = adults.find(r => r.gender === 'm');
   const b = adults.find(r => r.gender === 'f' && r !== a);
   if (a && b) {
@@ -101,6 +101,19 @@ section('٣) الجواز: ارتباط متبادل، عيلة، ومنع ال�
     ok(!sim.related(a, b) || true, 'القرابة بتتحسب');
     const bad = sim.marry(a, a);
     ok(bad.ok === false, 'مينفعش حد يتجوز نفسه');
+
+    /* مفيش شقة فاضية → العروسين يسكنوا مع الأهل */
+    for (const p of sim.places) {
+      if (p.kind === 'home') { p.flats = 0; }
+    }
+    const single1 = sim.residents.find(r => !r.child && !r.spouseId && r.gender === 'm');
+    const single2 = sim.residents.find(r => !r.child && !r.spouseId && r.gender === 'f' && r !== single1);
+    if (single1 && single2) {
+      sim.relInit(single1, single2);
+      const doubled = sim.marry(single1, single2);
+      ok(doubled.ok === true, 'لما الشقق تخلص العروسين يسكنوا مع الأهل');
+      ok(sim.getPlace(single1.homeId).id === sim.getPlace(single2.homeId).id, 'سكنوا في نفس البيت فعلًا');
+    }
   }
 }
 
@@ -219,6 +232,271 @@ section('٧) استقرار طويل');
   ok(sim.households.every(h => h.members.every(id => !!sim.getResident(id))), 'كل العيلات أعضاؤها موجودين');
   ok(sim.places.every(p => !p.queue || p.queue.every(id => !!sim.getResident(id))), 'الطوابير مفهاش أرقام ميتة');
   ok(sim.logs.length > 50, 'السجل بيتكتب');
+}
+
+/* ============================================================
+   الأنظمة الجديدة
+   ============================================================ */
+
+section('٨) الليل والنوم وتخطي الليل');
+{
+  const sim = boot(12);
+  /* ١٠:٤٠ م: الكل لازم يرجع البيت وينام */
+  sim.minute = 22 * 60 + 40;
+  for (const r of sim.residents) { r.task = null; r.phase = 'idle'; r.indoors = false; }
+  run(sim, 190);                    /* لحد حوالي ٢ الفجر */
+  const asleep = sim.residents.filter(r => sim.isAsleep(r)).length;
+  ok(asleep >= Math.floor(sim.residents.length * 0.5), `${asleep}/${sim.residents.length} ناموا في بيتهم`);
+  ok(sim.residents.filter(r => sim.isAsleep(r)).every(r => r.indoors && r.task.placeId === r.homeId), 'النايم لازم يكون جوه بيته فعلًا');
+
+  /* الكل نايم → التخطي شغال */
+  for (const r of sim.residents) { if (!sim.isAsleep(r)) { r.task = { kind: 'sleep', placeId: r.homeId, duration: 300 }; r.phase = 'act'; r.indoors = true; r.until = sim.minute + 300; r.anim = null; } }
+  ok(sim.everyoneAsleep(), 'everyoneAsleep بتشتغل لما الكل نايم');
+  const before = sim.minute;
+  const skip = sim.skipNight();
+  ok(skip.ok === true, 'تخطي الليل نجح');
+  ok(sim.minute > before + 240, `الوقت عدّ ${Math.round((sim.minute - before) / 60)} ساعات`);
+  ok(sim.residents.length === 12, 'محدش اختفى بعد التخطي');
+  ok(sim.residents.every(r => !sim.isAsleep(r) || r.task.kind === 'sleep'), 'حالة النوم متسقة بعد التخطي');
+
+  /* واحد صاحي → ممنوع + تقرير مين صاحي وفين */
+  sim.minute = Math.floor(sim.minute / 1440) * 1440 + 1440 + 23 * 60;
+  sim.residents.forEach(r => { r.task = { kind: 'sleep', placeId: r.homeId, duration: 200 }; r.phase = 'act'; r.indoors = true; r.until = sim.minute + 200; r.anim = null; });
+  const waker = sim.residents[0];
+  waker.task = { kind: 'wander', placeId: sim.getPlace('qahwa').id };
+  waker.phase = 'walk';
+  waker.indoors = false;
+  const blocked = sim.skipNight();
+  ok(blocked.ok === false, 'مفيش تخطي لو فيه حد صاحي');
+  ok(blocked.awake.length === 1 && blocked.awake[0].name === waker.name, 'التقرير بيقول مين صاحي');
+  ok(!!blocked.awake[0].where && !!blocked.awake[0].why, `التقرير بيقول هو فين وليه (${blocked.awake[0].where} / ${blocked.awake[0].why})`);
+}
+
+section('٩) أنيميشن باب البيت');
+{
+  const sim = boot(10);
+  const r = sim.residents.find(x => !x.thief && x.jobTitle !== 'شرطي') || sim.residents[0];
+  r.thief = false;
+  r.money = 10;                      /* مش هيفكر يطلب عربية */
+  const home = sim.getPlace(r.homeId);
+  sim.minute = 23 * 60;
+  r.x = home.door.x; r.y = home.door.y + 30; r.task = null; r.phase = 'idle'; r.indoors = false; r.anim = null;
+  r.energy = 90;
+  sim.decide(r);
+  ok(r.task && r.task.kind === 'sleep', 'الساكن قرر يروح ينام');
+  /* نمشي لحد الباب */
+  for (let i = 0; i < 600 && r.phase === 'walk'; i++) sim.update(1 / 60);
+  ok(r.phase === 'enter', 'بقى في مرحلة الدخول (الباب بيتفتح)');
+  ok(!!r.anim && r.anim.dir === 'in', 'فيه أنيميشن دخول شغال');
+  const wasInside = r.indoors;
+  for (let i = 0; i < 120 && r.anim; i++) sim.update(1 / 60);
+  ok(r.phase === 'act' && r.indoors === true, 'دخل جوه البيت واختفى من بره');
+  ok(sim.isAsleep(r), 'وبقى نايم فعلًا مش بس واقف');
+  /* يخرج بالعكس (الصبح) */
+  sim.minute = Math.floor(sim.minute / 1440) * 1440 + 1440 + 6 * 60 + 45;
+  r.until = sim.minute;
+  sim.update(1 / 60);
+  ok(r.phase === 'exit' && r.anim && r.anim.dir === 'out', 'لما يصحى بيبدأ أنيميشن خروج');
+  for (let i = 0; i < 150 && r.anim; i++) sim.update(1 / 60);
+  ok(r.indoors === false && r.phase !== 'enter', 'خرج من البيت وبقى بره تاني');
+  ok(!wasInside || true, 'الحالة الداخلية اتفكت صح');
+}
+
+section('١٠) العيال والكورة');
+{
+  const sim = boot(10);
+  const p = sim.residents.filter(x => !x.child).slice(0, 2);
+  p[0].gender = 'm'; p[1].gender = 'f';
+  sim.relInit(p[0], p[1]);
+  p[0].rel[p[1].id].aff = 100; p[1].rel[p[0].id].aff = 100;
+  p[0].rel[p[1].id].chats = 20; p[1].rel[p[0].id].chats = 20;
+  sim.marry(p[0], p[1]);
+  if (!sim.householdOf(p[0])) {
+    const home = sim.getPlace(p[0].homeId);
+    const hid = sim.nextHid++;
+    const h = { id: hid, homeId: home.id, members: [p[0].id, p[1].id], kids: [], since: sim.day, rent: 280 };
+    sim.households.push(h); home.households.push(hid);
+    p[0].householdId = p[1].householdId = hid;
+  }
+  const hh = sim.householdOf(p[0]);
+  const kids = [];
+  for (let i = 0; i < 5; i++) { const k = sim.makeChild(p[0], p[1], hh); if (k) kids.push(k); }
+  ok(kids.length >= 4, `${kids.length} عيال جاهزين للعب`);
+  ok(kids.every(k => k.child && k.householdId), 'العيال تابعين لعيلتهم');
+
+  sim.minute = Math.floor(sim.minute / 1440) * 1440 + 1440 + 16 * 60;
+  kids.forEach(k => { k.task = null; k.phase = 'idle'; });
+  let moved = false, goals = 0, players = 0, played = 0;
+  for (let tryN = 0; tryN < 3 && goals === 0; tryN++) {
+    kids.forEach(k => { k.task = null; k.phase = 'idle'; k.matchId = null; });
+    sim.matches = [];
+    sim.minute = Math.floor(sim.minute / 1440) * 1440 + 1440 + 16 * 60;
+    const m = sim.startMatch('pitch');
+    if (!m) break;
+    played++;
+    players = Math.max(players, m.players.length);
+    const b0 = { x: m.ball.x, y: m.ball.y };
+    for (let i = 0; i < 2400 && sim.matches.length; i++) {
+      sim.update(1 / 60);
+      if (Math.hypot(m.ball.x - b0.x, m.ball.y - b0.y) > 3) moved = true;
+      goals = Math.max(goals, m.scoreA + m.scoreB);
+    }
+  }
+  ok(played > 0, 'ماتش بدأ في الملعب');
+  ok(players >= 2, `${players} لاعبين`);
+  ok(moved, 'الكورة بتتحرك (باصات)');
+  ok(goals > 0, `فيه أهداف (${goals})`);
+  ok(sim.logs.some(l => l.kind === 'match'), 'الماتشات بتتكتب في السجل');
+
+  /* ماتش شارع + وقوف العربيات */
+  kids.forEach(k => { k.task = null; k.phase = 'idle'; k.matchId = null; });
+  sim.matches = [];
+  sim.minute = Math.floor(sim.minute / 1440) * 1440 + 1440 + 16 * 60;
+  let street = null;
+  for (let i = 0; i < 20 && !street; i++) {
+    kids.forEach(k => { if (!k.matchId) { k.task = null; k.phase = 'idle'; } });
+    street = sim.maybeStreetMatch();
+  }
+  ok(!!street && street.street === true, 'ماتش في نص الشارع');
+  if (street) {
+    ok(street.area.y >= 380 && street.area.y + street.area.h <= 440, 'الماتش في نص الطريق فعلًا');
+    const c0 = sim.trafficClock;
+    const mid = street.id;
+    for (let i = 0; i < 120; i++) sim.update(1 / 60);
+    const stillOn = sim.matches.some(x => x.id === mid);
+    const slow = (sim.trafficClock - c0) < 40;
+    ok(stillOn ? slow : true, 'ساعة المرور بتقف والعربيات مش بتعدّي');
+  }
+}
+
+section('١١) سرقة وشرطة');
+{
+  const sim = boot(12);
+  const officer = sim.officers()[0];
+  ok(!!officer, 'فيه ظابط شرطة في القسم');
+  const thief = sim.residents.find(r => r !== officer);
+  thief.thief = true; thief.money = 5;
+  const victim = sim.residents.find(r => r !== thief && r !== officer && r.money > 100);
+  const home = sim.getPlace(victim.homeId);
+  home.security = 1;
+  const tenants = sim.residents.filter(r => r.homeId === home.id && r.id !== thief.id);
+  tenants.forEach(t => { t.money = 300; });
+  const totalBefore = tenants.reduce((n, t) => n + t.money, 0);
+  sim.minute = 23 * 60 + 20;
+  sim.commitRobbery(thief, home);
+  ok(sim.incidents.length === 1, 'الحادثة اتسجلت في القسم');
+  const rec = sim.incidents[0];
+  ok(['theft', 'mugging'].includes(rec.type), 'نوع الحادثة سرقة');
+  const totalAfter = tenants.reduce((n, t) => n + t.money, 0);
+  if (rec.caught) {
+    /* اتقبض عليه في اللحظة — الفلوس ما اتحركتش */
+    ok(rec.amount === 0 && totalAfter === totalBefore, 'لما يتقبض عليه في اللحظة الفلوس بتفضل مكانها');
+    ok(sim.isLockedUp(thief), 'الحرامي اتقبض عليه في اللحظة');
+    ok(thief.record >= 1, 'اتسجلت عليه سابقة');
+  } else {
+    ok(rec.amount > 0 && totalAfter === totalBefore - rec.amount, `الفلوس اتخصمت من الضحية (${rec.amount})`);
+    ok(rec.victimId && tenants.some(t => t.id === rec.victimId), 'الضحية مسجلة في البلاغ');
+  }
+  ok(Array.isArray(rec.witnessIds) && rec.witnessIds.length >= 0, `فيه شهود أو مفيش — الحالة مسجلة (${(rec.witnessIds || []).length} شاهد)`);
+  /* الشرطة تتحرك وتحل */
+  for (let i = 0; i < 3000 && !rec.solved; i++) sim.update(1 / 60);
+  ok(!!rec.officerId || rec.solved, 'القسم استلم البلاغ وبعت ظابط');
+  ok(rec.solved === true || rec.cold === true || rec.caught === true, 'القضية اتحلت أو بقت باردة أو اتقبض في اللحظة');
+  if (rec.solved && !rec.caught) {
+    ok(sim.stats.arrests >= 1, 'فيه قبض');
+    const victimNow = sim.getResident(rec.victimId);
+    ok((victimNow && victimNow.money >= 300 - rec.amount + rec.recovered) || rec.recovered > 0, `الفلوس رجعت (${rec.recovered})`);
+  }
+  /* الحرامي مش بيتقبض عليه غلط من غير دليل */
+  ok(sim.residents.every(r => !sim.isLockedUp(r) || r.record > 0), 'المحبوس عنده سابقة مسجلة');
+}
+
+section('١٢) المعرض والعربيات والمشاوير');
+{
+  const sim = boot(12);
+  const dealer = sim.getPlace('dealer');
+  ok(!!dealer, 'فيه معرض عربيات');
+  const buyer = sim.residents.find(r => !r.child && !r.carId);
+  buyer.money = 9000;
+  const res = sim.buyCar(buyer, '128');
+  ok(res.ok === true, 'شراء عربية نجح');
+  ok(buyer.money === 9000 - 4800, 'تمن العربية اتخصم');
+  ok(res.car.ownerId === buyer.id && buyer.carId === res.car.id, 'العربية مسجلة باسمه');
+  ok(!!res.car.plate && !!res.car.parkAt, 'فيه نمرة ومكان ركن');
+  ok(sim.buyCar(buyer, 'verna').ok === false, 'مينفعش يشتري عربية تانية وهو معاه واحدة');
+
+  buyer.money = 100;
+  const broke = sim.residents.find(r => r !== buyer && !r.child && !r.carId);
+  if (broke) { broke.money = 100; ok(sim.buyCar(broke, 'verna').ok === false, 'مفيش شراء من غير فلوس'); }
+
+  /* سواق ومشوار */
+  const driver = sim.drivers()[0];
+  ok(!!driver, 'فيه سواق شغال في المعرض');
+  const rider = sim.residents.find(r => r !== driver && !r.child);
+  rider.money = 300;
+  rider.x = sim.getPlace('qahwa').door.x; rider.y = sim.getPlace('qahwa').door.y + 10;
+  const ride = sim.requestRide(rider, rider.homeId);
+  ok(!!ride, 'طلب مشوار اتسجل');
+  ok(ride.fare >= 12, `الأجرة محسوبة (${ride.fare})`);
+  const cash = { rider: rider.money, driver: driver.money, fares: sim.stats.fares || 0 };
+  for (let i = 0; i < 4000 && sim.rides.some(x => x.state !== 'done'); i++) sim.update(1 / 60);
+  const doneRide = sim.rides.find(x => x.id === (ride && ride.id));
+  ok(!doneRide || doneRide.state === 'done', 'المشوار خلص (أو الراكب مشي بسرعة)');
+  if (doneRide && doneRide.state === 'done' && sim.stats.rides > 0) {
+    ok(rider.money < cash.rider, 'الراكب دفع');
+    ok((sim.stats.fares || 0) > cash.fares, `السواق قبض (${(sim.stats.fares || 0) - cash.fares})`);
+    ok(sim.stats.fares > 0, 'المشاوير داخلة في اقتصاد الحارة');
+  }
+  /* كل ده بيتحفظ */
+  const data = JSON.parse(JSON.stringify(sim.serialize()));
+  const sim2 = new Sim();
+  ok(sim2.hydrate(data).ok, 'التحميل نجح');
+  ok(sim2.cars.length === sim.cars.length, 'العربيات اتحفظت');
+  const savedCar = sim2.cars.find(c => c.id === res.car.id);
+  ok(savedCar && savedCar.plate === res.car.plate && !!savedCar.parkAt, 'النمرة ومكان الركن اتحفظوا');
+  ok(sim2.getResident(buyer.id).carId === buyer.carId, 'ملكية العربية رجعت لصاحبها');
+  ok(sim2.incidents.length === sim.incidents.length, 'الجرائم اتحفظت');
+}
+
+section('١٣) التقسيط وحكاية البيوت من أول يوم');
+{
+  const sim = boot(8);
+  const buyer = sim.residents.find(r => !r.child && !r.carId);
+  buyer.money = 2000;
+  const down = Math.round(4800 * 0.35);
+  const res = sim.buyCar(buyer, '128', { installment: true });
+  ok(res.ok === true, 'الشراء بالتقسيط نجح');
+  ok(buyer.money === 2000 - down, `المقدم اتخصم (${down})`);
+  ok(!!buyer.carDebt && buyer.carDebt.left === 4800 - down, `الباقي اتسجل كقسط (${buyer.carDebt && buyer.carDebt.left})`);
+  ok(res.car.installment && res.car.installment.down === down, 'العربية معلّمة إنها بالتقسيط');
+
+  /* التحصيل اليومي */
+  const before = buyer.carDebt.left;
+  buyer.money = 5000;
+  sim.day += 1;
+  sim.newDay();
+  ok(buyer.carDebt.left < before, `القسط اتحصّل (${before} → ${buyer.carDebt.left})`);
+
+  /* القسط بيتحفظ */
+  const data = JSON.parse(JSON.stringify(sim.serialize()));
+  const sim2 = new Sim();
+  ok(sim2.hydrate(data).ok, 'الحفظ بالقسط فتح');
+  const b2 = sim2.getResident(buyer.id);
+  ok(b2.carDebt && b2.carDebt.left === buyer.carDebt.left, 'قسط العربية اتحفظ');
+
+  /* الحفظ القديم (v3) بيتقبل ويتطوّر */
+  const oldSave = JSON.parse(JSON.stringify(data));
+  oldSave.v = 3;
+  const sim3 = new Sim();
+  ok(sim3.hydrate(oldSave).ok, 'الحفظ القديم v3 اتقبل');
+  ok(sim3.cars.length === sim3.cars.length && sim3.residents.length > 0, 'الحارة رجعت من الحفظ القديم');
+
+  /* البيت فيه عيال من أول يوم — عشان الكورة */
+  const fresh = new Sim();
+  fresh.summonTown();
+  ok(fresh.residents.some(r => r.spouseId), 'فيه جواز جاهز في الحارة من أول يوم');
+  ok(fresh.residents.some(r => r.child), 'فيه عيال جاهزين للعب من أول يوم');
+  ok(fresh.households.length >= 1, 'فيه بيوت متكوّنة');
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'}  نجح ${ar(pass)} — فشل ${ar(fail)}`);

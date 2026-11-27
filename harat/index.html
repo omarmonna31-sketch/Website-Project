@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="game">
@@ -29,6 +29,7 @@
         <button type="button" data-tab="people" role="tab">البشر</button>
         <button type="button" data-tab="town" role="tab">الحارة</button>
         <button type="button" data-tab="build" role="tab">البناء</button>
+        <button type="button" data-tab="street" role="tab">الشارع</button>
       </div>
 
       <div class="filters" id="filters">
@@ -39,6 +40,8 @@
         <button type="button" data-filter="life">🗣️ حياة</button>
         <button type="button" data-filter="talk">💬 كلام</button>
         <button type="button" data-filter="event">⚡ أحداث</button>
+        <button type="button" data-filter="crime">🚨 جرائم</button>
+        <button type="button" data-filter="street">🛣️ شارع وكورة</button>
       </div>
 
       <div class="tab-body" id="logBody">
@@ -65,6 +68,12 @@
         <div class="section-title">البيوت والإيجار</div>
         <div id="homeList"></div>
         <div id="marketList"></div>
+      </div>
+    </div>
+
+    <div class="tab-body" id="streetBody" hidden>
+      <div class="town-scroll" id="streetScroll">
+        <div id="streetList"></div>
       </div>
     </div>
 
@@ -118,6 +127,7 @@
           <button type="button" data-speed="4" title="سرعة سريعة">٤×</button>
         </div>
         <button type="button" class="btn ghost-on" id="bubbleBtn" title="عرض خواطر الناس فوق روسهم (B)">💭 <span class="lbl">الخواطر</span></button>
+        <button type="button" class="btn ghost-on night" id="nightBtn" title="طوّل الليل لحد الصبح (لازم كل الحارة تكون نايمة)">🌙 نم لحد الصبح</button>
         <button type="button" class="btn primary" id="addBtn" title="اسكن ساكن جديد">＋ <span class="lbl">اسكن واحد</span></button>
         <button type="button" class="btn icon" id="saveBtn" title="حفظ الحارة">💾</button>
         <button type="button" class="btn icon" id="resetBtn" title="حارة جديدة">↺</button>
@@ -193,6 +203,10 @@
             <li><b>🚪 أماكن بتتدخلها</b>دوس على أي محل أو عمارة وشوف جوه</li>
             <li><b>💍 جواز وعيال</b>ناس بتتجوز، بتخلف، وبتسكن في بيوت</li>
             <li><b>🏗️ مركز بناء</b>أراضي فاضية، بيوت بتتبني، وإيجارات</li>
+            <li><b>🌙 ليل ونوم</b>الناس بترجع بيوتها وتنام… وانت بتطوّل لحد الصبح</li>
+            <li><b>⚽ عيال وكورة</b>ماتشات في الملعب وفي نص الشارع</li>
+            <li><b>🚓 شرطة وحرامية</b>سرقات بالليل، بلاغات، وقضايا بتتحل</li>
+            <li><b>🚗 معرض وتاكسي</b>عربيات للبيع، ومشاوير بعربية في الحارة</li>
           </ul>
           <button class="start-btn" id="startBtn" type="button">استدعِ الحارة <span class="arrow">✦</span></button>
           <button class="resume-btn" id="resumeBtn" type="button" hidden>استكمل الحارة المحفوظة ⤾</button>
@@ -202,6 +216,6 @@
     </main>
   </div>
 
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>
