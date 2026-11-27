@@ -155,7 +155,7 @@ button { font-family: inherit; }
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   opacity: 0; pointer-events: none;
   transition: opacity 0.3s, transform 0.3s;
-  z-index: 6;
+  z-index: 12;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
