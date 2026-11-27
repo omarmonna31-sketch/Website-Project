@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <div class="game">
@@ -28,6 +28,7 @@
         <button type="button" data-tab="log" class="on" role="tab">السجل</button>
         <button type="button" data-tab="people" role="tab">البشر</button>
         <button type="button" data-tab="town" role="tab">الحارة</button>
+        <button type="button" data-tab="build" role="tab">البناء</button>
       </div>
 
       <div class="filters" id="filters">
@@ -50,7 +51,24 @@
         <div class="people-list" id="peopleList"></div>
       </div>
 
-      <div class="tab-body" id="townBody" hidden>
+      <div class="tab-body" id="buildBody" hidden>
+      <div class="town-scroll" id="buildScroll">
+        <div class="stat-grid" id="buildStats">
+          <div class="stat"><span>بيوت</span><strong id="bldHomes">٠</strong></div>
+          <div class="stat"><span>أراضي فاضية</span><strong id="bldLots">٠</strong></div>
+          <div class="stat"><span>بيتبني دلوقتي</span><strong id="bldProjects">٠</strong></div>
+          <div class="stat"><span>شقق فاضية</span><strong id="bldVacant">٠</strong></div>
+        </div>
+        <div class="section-title">مركز البناء</div>
+        <div class="build-note">انت الخالق: تقدر تبدأ بناء بيت جديد في أي أرض فاضية (تكلفة <b id="bldCost">١٤٠٠</b> ج.م). السكان كمان بيبنوا لوحدهم لما يجمعوا فلوس.</div>
+        <div id="lotList"></div>
+        <div class="section-title">البيوت والإيجار</div>
+        <div id="homeList"></div>
+        <div id="marketList"></div>
+      </div>
+    </div>
+
+    <div class="tab-body" id="townBody" hidden>
         <div class="town-scroll">
           <div class="stat-grid">
             <div class="stat"><span>السكان</span><strong id="statPop">٠</strong></div>
@@ -101,6 +119,7 @@
         </div>
         <button type="button" class="btn ghost-on" id="bubbleBtn" title="عرض خواطر الناس فوق روسهم (B)">💭 <span class="lbl">الخواطر</span></button>
         <button type="button" class="btn primary" id="addBtn" title="اسكن ساكن جديد">＋ <span class="lbl">اسكن واحد</span></button>
+        <button type="button" class="btn icon" id="saveBtn" title="حفظ الحارة">💾</button>
         <button type="button" class="btn icon" id="resetBtn" title="حارة جديدة">↺</button>
       </div>
     </header>
@@ -111,10 +130,31 @@
       <div class="hint" id="hint">دوس على أي ساكن عشان تتفرج على حاله وخواطره 💭</div>
       <div class="toast" id="toast"></div>
 
+      <div class="inside-bar" id="insideBar" hidden>
+        <div class="ib-title"><span id="insideIcon">🏪</span><b id="insideName">—</b><small id="insideSub"></small></div>
+        <button type="button" id="exitBtn">خروج ←</button>
+      </div>
+
       <div class="zoom-tools">
         <button type="button" id="zoomIn" title="تقريب" aria-label="تقريب">＋</button>
         <button type="button" id="zoomOut" title="تبعيد" aria-label="تبعيد">－</button>
       </div>
+
+      <section class="place-card" id="placeCard" hidden aria-label="تفاصيل المكان">
+        <div class="rc-head">
+          <div class="rc-avatar" id="plAvatar">🏪</div>
+          <div class="rc-id">
+            <div class="rc-name" id="plName">—</div>
+            <div class="rc-job" id="plMeta">—</div>
+          </div>
+          <button type="button" class="rc-close" id="plClose" aria-label="قفل">✕</button>
+        </div>
+        <div class="pl-status" id="plStatus">—</div>
+        <div class="pl-body" id="plBody"></div>
+        <div class="pl-actions">
+          <button type="button" class="pl-enter" id="plEnter">ادخل المكان 🚪</button>
+        </div>
+      </section>
 
       <section class="resident-card" id="card" hidden aria-label="تفاصيل الساكن">
         <div class="rc-head">
@@ -150,14 +190,18 @@
             <li><b>🛒 شغل بيبان</b>بيبيعوا للزبائن اللي بيقفوا في الطابور</li>
             <li><b>💬 ناس بتتكلم</b>جيران بيسلّموا على بعض، وأصحاب، وحب بيبدأ</li>
             <li><b>📋 قايمة «البشر»</b>حياة كل واحد: كلامه، أصحابه، اللي في قلبه</li>
+            <li><b>🚪 أماكن بتتدخلها</b>دوس على أي محل أو عمارة وشوف جوه</li>
+            <li><b>💍 جواز وعيال</b>ناس بتتجوز، بتخلف، وبتسكن في بيوت</li>
+            <li><b>🏗️ مركز بناء</b>أراضي فاضية، بيوت بتتبني، وإيجارات</li>
           </ul>
           <button class="start-btn" id="startBtn" type="button">استدعِ الحارة <span class="arrow">✦</span></button>
+          <button class="resume-btn" id="resumeBtn" type="button" hidden>استكمل الحارة المحفوظة ⤾</button>
           <small>بعد كده تقدر تسكن ناس جداد، تسرّع الوقت، وتدوس على أي ساكن تشوف حياته.</small>
         </div>
       </div>
     </main>
   </div>
 
-  <script type="module" src="app.js?v=2"></script>
+  <script type="module" src="app.js?v=4"></script>
 </body>
 </html>
