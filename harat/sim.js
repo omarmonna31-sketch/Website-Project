@@ -51,6 +51,7 @@ export const KINDS = {
   food: { icon: '🍞', label: 'أكل', color: '#bf6a35' },
   home: { icon: '🏠', label: 'بيت', color: '#5570a8' },
   social: { icon: '🗣️', label: 'حياة', color: '#4f8a58' },
+  talk: { icon: '💬', label: 'كلام', color: '#3f8f8a' },
 };
 
 /* ------------------------------------------------------------
@@ -110,6 +111,31 @@ export const PLACE_DEFS = [
     meal: { name: 'فطير مشلتت', cost: 20, hunger: 48 } },
   { id: 'wafaa', name: 'عمارة الوفاء', style: 'apartment', kind: 'home', x: 1060, y: 640, w: 130, h: 115, color: '#ceb08c', flats: 3, rent: 280 },
 ];
+
+const PRODUCTS = {
+  baqala: [{ name: 'سكر وشاي', price: 22, icon: '🧺' }, { name: 'جبنة وبيض', price: 26, icon: '🥚' }, { name: 'رز ومكرونة', price: 18, icon: '🍚' }],
+  bakery: [{ name: 'عيش طازة', price: 8, icon: '🍞' }],
+  koshk: [{ name: 'ساندوتش', price: 15, icon: '🥪' }, { name: 'كولا ساقعة', price: 7, icon: '🥤' }],
+  koshary: [{ name: 'طبق كشري', price: 30, icon: '🍛' }],
+  qahwa: [{ name: 'شاي وقهوة', price: 8, icon: '☕' }],
+  super: [{ name: 'حاجات البيت', price: 45, icon: '🛍️' }],
+  veg: [{ name: 'خضار وفاكهة', price: 16, icon: '🥕' }],
+  fater: [{ name: 'فطير مشلتت', price: 20, icon: '🫓' }],
+  pharmacy: [{ name: 'دوا البرد', price: 35, icon: '💊' }],
+  mobile: [{ name: 'كفر وشاحن', price: 55, icon: '📱' }],
+  laundry: [{ name: 'غسيل هدوم', price: 25, icon: '👕' }],
+  workshop: [{ name: 'تصليح حاجة', price: 40, icon: '🔧' }],
+  gov: [{ name: 'ورق رسمي', price: 30, icon: '📄' }],
+  garage: [{ name: 'تصليح توك توك', price: 35, icon: '🛠️' }],
+};
+
+/* ---------- looks ---------- */
+const MALE_SHIRTS = ['#e6ddc9', '#cfd8d2', '#c7d0e0', '#e3d3b8', '#d7c7df', '#bac8a9', '#dfc9a8', '#a9c0bd'];
+const FEMALE_DRESS = ['#8c4a5a', '#5f6f9c', '#3e7d74', '#a06a92', '#b8862b', '#7c8a3f', '#b4552d', '#4f86a8', '#9a5f70', '#4a7f8c'];
+const PANTS = ['#39434f', '#2f2b28', '#3f4a3f', '#4a3f36', '#33405c'];
+const HIJABS = ['#e8dcc8', '#c9a0a8', '#a8b8c9', '#d8c9a0', '#b9a0c9', '#a0b9a8', '#e0c0a0', '#8f9bb3'];
+const HAIRS2 = ['#2b211c', '#3d2c22', '#1f1a17', '#4a3628', '#5a4a3a'];
+const APRONS = ['#f2e9d6', '#dfe8e0', '#e9d9c6'];
 
 const NAME_FIRST_M = ['عبده', 'صابر', 'رجب', 'محروس', 'سيد', 'كريم', 'مصطفى', 'حسن', 'عمرو', 'شعبان', 'فتحي', 'رمضان', 'حمدي', 'جمال', 'أنور', 'سامي', 'طلعت', 'بدر', 'نبيل', 'عاطف', 'ياسر', 'مدحت'];
 const NAME_FIRST_F = ['فاطمة', 'زينب', 'هدى', 'سعاد', 'أمينة', 'نادية', 'منى', 'شيماء', 'رحمة', 'سماح', 'هالة', 'إيمان', 'نسرين', 'صفية', 'وفاء', 'بوسي', 'منال', 'أميرة'];
@@ -257,6 +283,16 @@ export function findPath(nav, from, to) {
 /* ------------------------------------------------------------
    Thought pools
    ------------------------------------------------------------ */
+const TALK = {
+  greet: ['إزيك يا {n}؟', 'صباح الخير يا {n}.', 'عاملة إيه يا {n}؟', 'شفتك من بعيد قلت أسلم عليك.', 'إيه الأخبار يا {n}؟'],
+  small: ['الدنيا غالية النهاردة…', 'الشغل تعب، بس الحمد لله.', 'الجو حلو النهاردة يا {n}.', 'عرفت إن سعر الطماطم نزل شوية؟', 'عيالك عاملين إيه؟', 'ربنا يسهّل… كل واحد شايل همه.'],
+  friends: ['لو احتجت حاجة قولي، أنا موجود.', 'تعالى نروح المولد مع بعض.', 'قعدتنا دي أحلى حاجة في اليوم.', 'إنت من الناس اللي الواحد بيطمنلهم.', 'خليك فاكر إن بابي مفتوح ليك.'],
+  reply: ['الحمد لله، ماشية.', 'أهلاً بيك يا صاحبي.', 'والله الدنيا مشغولة…', 'إنت قولت إيه؟', 'تسلم يا غالي.', 'يلا ربنا يكرم.'],
+  argue: ['ما تتكلمش في حاجة مش بتفهم فيها!', 'أنا مش فاضي لكلامك ده.', 'بلاش تقلب المواجع.', 'كل مرة نفس الحكاية معاك.'],
+  customer: ['عندك {p}؟', 'إزيك يا {n}، عايز {p}.', 'إيه الجديد النهاردة؟', 'هات لي {p} الله يكرمك.'],
+  seller: ['اتفضل، طازة النهاردة.', 'خده يا حاج… ربنا يسهّل.', 'ده أحسن اللي عندي.', 'تحت أمرك يا {n}.'],
+};
+
 const T = {
   work: [
     'الشغل ما بيخلصش، بس القرش بيحلى في الإيد.',
@@ -367,6 +403,7 @@ export class Sim {
   constructor() {
     this.onLog = null;
     this.onToast = null;
+    this.onFx = null;
     this.reset();
   }
 
@@ -382,7 +419,7 @@ export class Sim {
     this.seq = 1;
     this.nextRid = 1;
     this.nav = null;
-    this.stats = { earned: 0, spent: 0, meals: 0, rent: 0, bills: 0, gigs: 0, hires: 0 };
+    this.stats = { earned: 0, spent: 0, meals: 0, rent: 0, bills: 0, gigs: 0, hires: 0, sales: 0, salesCount: 0, talks: 0 };
     this.mod = { foodPrice: 1, energyDrain: 1, moodBias: 0, until: 0, name: '' };
     this.powerCut = false;
     this.events = [];
@@ -455,6 +492,8 @@ export class Sim {
         solid: d.style !== 'pitch',
       });
       if (place.jobs) place.jobs = place.jobs.map(j => Object.assign({}, j, { takenBy: null }));
+      if (PRODUCTS[place.id]) place.products = PRODUCTS[place.id].map(x => Object.assign({}, x));
+      place.counter = !!place.products;
       return place;
     });
     this.nav = buildNav(this.places);
@@ -496,14 +535,35 @@ export class Sim {
     const home = pick(homes);
     const flatNo = this.residents.filter(r => r.homeId === home.id).length + 1;
 
+    const male = gender === 'm';
+    const look = {
+      height: rnd(0.94, 1.06),
+      build: rnd(0.93, 1.1),
+      top: male ? pick(MALE_SHIRTS) : pick(FEMALE_DRESS),
+      pants: pick(PANTS),
+      galabeya: male ? chance(0.45) : chance(0.55),
+      hijab: male ? false : chance(0.72),
+      hijabColor: pick(HIJABS),
+      hair: pick(HAIRS2),
+      hairStyle: male ? pick(['short', 'short', 'bald', 'cap', 'taqiyah']) : 'long',
+      beard: male && chance(0.4),
+      moustache: male && chance(0.55),
+      glasses: chance(0.18),
+      shoe: pick(['#3a2f26', '#2b2622', '#4a3b30']),
+      bag: chance(0.45) ? pick(['#8a5a32', '#4a5a6a', '#7a4a5a']) : null,
+      apron: null,
+      skinTone: pick(SKIN_TONES),
+    };
+
     const r = {
       id: this.nextRid++,
       name,
       gender,
       age: rndInt(19, 58),
-      color: pick(SHIRT_COLORS),
-      skin: pick(SKIN_TONES),
-      hair: pick(HAIR_COLORS),
+      color: look.top,
+      look,
+      skin: look.skinTone,
+      hair: look.hair,
       x: home.door.x + rnd(-16, 16),
       y: home.door.y + rnd(-8, 10),
       homeId: home.id,
@@ -533,9 +593,26 @@ export class Sim {
       billNotice: 0,
       powerCut: false,
       arrivedDay: this.day,
-      stats: { earned: 0, spent: 0, meals: 0, shifts: 0 },
+      stats: { earned: 0, spent: 0, meals: 0, shifts: 0, served: 0 },
       nextEvent: this.minute + rnd(200, 500),
+      rel: {},
+      crushes: [],
+      quotes: [],
+      speech: '',
+      speechAt: -999,
+      chatTimer: rnd(5, 14),
+      nextShop: this.minute + rnd(90, 260),
+      carry: null,
+      serveAt: -999,
+      lastLine: '',
     };
+
+    /* start out as strangers who recognise each other */
+    for (const o of this.residents) {
+      const base = rndInt(6, 24);
+      r.rel[o.id] = { aff: base, chats: 0, last: -999, friends: 0 };
+      o.rel[r.id] = { aff: clamp(base + rndInt(-5, 5), 0, 100), chats: 0, last: -999, friends: 0 };
+    }
 
     this.residents.push(r);
 
@@ -557,8 +634,144 @@ export class Sim {
     r.workplaceId = slot.place.id;
     r.jobTitle = slot.job.title;
     r.jobIndex = slot.index;
+    if (/قهوة|كشري|خباز|بياع|كاشير|مغسلة|صيدلي|خضار/.test(slot.job.title)) {
+      r.look.apron = pick(APRONS);
+    }
     this.stats.hires++;
     this.addLog('work', `اتعيّن ${r.jobTitle} في ${slot.place.name}.`, r);
+  }
+
+  /* ---------- shop counters & relationships ---------- */
+  workerAt(placeId) {
+    return this.residents.find(w => w.workplaceId === placeId && w.task && w.task.kind === 'work' && w.phase === 'act') || null;
+  }
+
+  affOf(a, b) {
+    return a.rel && a.rel[b.id] ? a.rel[b.id].aff : 0;
+  }
+
+  relInit(a, b) {
+    if (!a.rel[b.id]) a.rel[b.id] = { aff: 20, chats: 0, last: -999, friends: 0 };
+    if (!b.rel[a.id]) b.rel[a.id] = { aff: 20, chats: 0, last: -999, friends: 0 };
+  }
+
+  bumpRel(a, b, delta) {
+    this.relInit(a, b);
+    const A = a.rel[b.id], B = b.rel[a.id];
+    A.aff = clamp(A.aff + delta, 0, 100);
+    B.aff = clamp(B.aff + delta, 0, 100);
+    A.last = B.last = this.minute;
+    const level = A.aff >= 75 ? 2 : A.aff >= 45 ? 1 : 0;
+    if (level > (A.friends || 0)) {
+      A.friends = level; B.friends = level;
+      this.addLog('social', level === 2
+        ? `${a.name} و${b.name} بقوا أصحاب أوي… مبقاش بينهم كلام.`
+        : `${a.name} و${b.name} بقوا أصحاب.`);
+    }
+  }
+
+  friendsOf(r) {
+    return Object.entries(r.rel || {})
+      .map(([id, rel]) => ({ person: this.getResident(Number(id)), rel }))
+      .filter(x => x.person && x.rel.aff >= 45)
+      .sort((x, y) => y.rel.aff - x.rel.aff);
+  }
+
+  talkTo(a, b, lineA, lineB) {
+    this.addLog('talk', `«${lineA}» — فرد ${b.name}: «${lineB}»`, a);
+    const stamp = { day: this.day, time: tod(this.minute) };
+    a.quotes.push({ text: lineA, to: b.name, side: 'قال', ...stamp });
+    b.quotes.push({ text: lineB, to: a.name, side: 'رد', ...stamp });
+    if (a.quotes.length > 24) a.quotes.shift();
+    if (b.quotes.length > 24) b.quotes.shift();
+    a.speech = lineA; a.speechAt = this.minute;
+    b.speech = lineB; b.speechAt = this.minute;
+    /* turn to face each other while they talk */
+    if (!a.task || a.phase !== 'walk') a.dir = Math.atan2(b.y - a.y, b.x - a.x);
+    if (!b.task || b.phase !== 'walk') b.dir = Math.atan2(a.y - b.y, a.x - b.x);
+    this.stats.talks++;
+    this.bumpRel(a, b, rndInt(3, 7));
+    this.fx('talk', (a.x + b.x) / 2, Math.min(a.y, b.y) - 30, '💬');
+  }
+
+  fx(type, x, y, text) {
+    if (this.onFx) this.onFx({ type, x, y, text, at: this.minute });
+  }
+
+  payCounter(customer, task, place, amount, label) {
+    const seller = task.serverId ? this.getResident(task.serverId) : null;
+    if (!seller || !amount) return;
+    const comm = Math.max(2, Math.round(amount * 0.35));
+    seller.money += comm;
+    seller.stats.earned += comm;
+    this.stats.earned += comm;
+    seller.stats.served = (seller.stats.served || 0) + 1;
+    this.stats.sales += amount;
+    this.stats.salesCount++;
+    seller.mood = clamp(seller.mood + 2, 0, 100);
+    this.addLog('money', `خدم ${customer.name} (${label}) بـ${money(amount)} — حصته ${money(comm)}.`, seller);
+    this.fx('sale', place ? place.door.x + 6 : customer.x, place ? place.door.y + 15 : customer.y - 20, `+${money(comm)}`);
+    this.bumpRel(customer, seller, 4);
+  }
+
+  maybeChat(r) {
+    if (!r.task || r.phase !== 'act') return;
+    const kinds = ['social', 'family', 'eat', 'wander', 'shop'];
+    if (!kinds.includes(r.task.kind)) return;
+    let best = null, bd = 70;
+    for (const o of this.residents) {
+      if (o === r || !o.task || o.phase !== 'act') continue;
+      if (!kinds.includes(o.task.kind)) continue;
+      const d = Math.hypot(o.x - r.x, o.y - r.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    if (!best) return;
+    if (!chance(0.7)) return;
+
+    const aff = this.affOf(r, best);
+    const short = best.name.split(' ')[0];
+
+    /* now and then a small argument */
+    if (chance(0.05) && aff > 15) {
+      const lineA = pick(TALK.argue);
+      const lineB = pick(TALK.argue);
+      this.addLog('social', `اتكلموا… وخناقة صغيرة بين ${r.name} و${best.name}.`, r);
+      r.speech = lineA; r.speechAt = this.minute;
+      best.speech = lineB; best.speechAt = this.minute;
+      this.bumpRel(r, best, -rndInt(5, 12));
+      r.mood = clamp(r.mood - 4, 0, 100);
+      best.mood = clamp(best.mood - 3, 0, 100);
+      this.relInit(r, best);
+      r.rel[best.id].friends = Math.min(r.rel[best.id].friends, 0);
+      best.rel[r.id].friends = Math.min(best.rel[r.id].friends, 0);
+      this.fx('talk', (r.x + best.x) / 2, Math.min(r.y, best.y) - 30, '💢');
+      return;
+    }
+
+    const pool = aff >= 45 ? TALK.friends : aff >= 20 ? TALK.small : TALK.greet;
+    const lineA = pick(pool).replace('{n}', short);
+    const lineB = pick(TALK.reply);
+    this.talkTo(r, best, lineA, lineB);
+
+    /* feelings quietly grow */
+    if (r.gender !== best.gender && chance(0.14) && this.affOf(r, best) > 30 && !r.crushes.includes(best.id)) {
+      r.crushes.push(best.id);
+      r.mood = clamp(r.mood + 8, 0, 100);
+      this.addLog('event', `${r.name} حاسس إن قلبه مال لـ${best.name}… ومش عارف يقولها.`, r);
+      this.think(r, pick(['مش عارف أقولها إزاي…', 'كل ما أشوفه بنسى الكلام.', 'قلبي بيدق بسرعة لما بتيجي.']));
+      if (best.crushes.includes(r.id)) {
+        r.confessed = r.confessed || {};
+        if (!r.confessed[best.id]) {
+          r.confessed[best.id] = true;
+          r.mood = clamp(r.mood + 10, 0, 100);
+          best.mood = clamp(best.mood + 10, 0, 100);
+          this.addLog('event', `الحب بقى من الطرفين: ${r.name} و${best.name} اعترفوا لبعض.`, r);
+          this.talkTo(r, best,
+            pick([`أنا بحبك يا ${short}…`, 'مش عارف أقولها غير كده: أنا بحبك.']),
+            pick(['وأنا كمان… من زمان.', 'كنت مستنية الكلمة دي.']));
+        }
+      }
+    }
   }
 
   /* ---------- actions ---------- */
@@ -568,7 +781,26 @@ export class Sim {
 
   goToPlace(r, place, kind, extra = {}) {
     const door = place.door;
-    const target = { x: clamp(door.x + r.jitter.x, 10, WORLD.w - 10), y: clamp(door.y + r.jitter.y, 10, WORLD.h - 10) };
+    let tx = door.x + r.jitter.x;
+    let ty = door.y + r.jitter.y;
+    if (kind === 'shop' || kind === 'eat') {
+      /* stand at the counter, in a loose line */
+      const q = this.residents.filter(o => o !== r && o.task && (o.task.kind === 'shop' || o.task.kind === 'eat') && o.task.placeId === place.id).length;
+      tx = door.x - 30 - q * 13;
+      ty = door.y + 20 + (q % 2) * 4;
+    } else if (kind === 'social' || kind === 'family') {
+      /* little huddle, not all stacked on the door */
+      const q = this.residents.filter(o => o !== r && o.task && o.task.placeId === place.id && ['social', 'family'].includes(o.task.kind)).length;
+      const slots = [[-46, 22], [-66, 26], [34, 22], [54, 27], [-30, 34], [20, 35]];
+      const slot = slots[q % slots.length];
+      tx = door.x + slot[0];
+      ty = door.y + slot[1];
+    }
+    if (kind === 'work' && place.counter) {
+      tx = door.x + 7;
+      ty = door.y + 1;
+    }
+    const target = { x: clamp(tx, 10, WORLD.w - 10), y: clamp(ty, 10, WORLD.h - 10) };
     r.task = Object.assign({ kind, placeId: place.id, duration: 30 }, extra);
     r.phase = 'walk';
     r.until = null;
@@ -620,6 +852,22 @@ export class Sim {
 
     if (task.kind === 'work' && place) {
       this.addLog('work', `بدأ شغله النهاردة (${r.jobTitle || 'شغل'}) في ${place.name}.`, r);
+    }
+    if ((task.kind === 'eat' || task.kind === 'shop') && place) {
+      const server = this.workerAt(place.id);
+      if (server && server.id !== r.id) {
+        task.serverId = server.id;
+        const order = task.kind === 'shop' ? (task.product ? task.product.name : 'حاجة') : (place.meal ? place.meal.name : 'طلب');
+        task.orderName = order;
+        const qlen = this.residents.filter(o => o !== r && o.task && o.task.kind === task.kind && o.task.placeId === place.id && o.phase === 'act').length;
+        if (qlen > 0) this.think(r, pick(['الطابور طويل النهاردة…', 'دوري جاي، أستنى شوية.', 'الدنيا زحمة… الصبر.']));
+        if (chance(0.65)) {
+          this.addLog('work', `جاله زبون: ${r.name} عايز ${order}.`, server);
+          this.think(server, pick(['الزبون ده محترم…', 'الشغل ماشي النهاردة.', 'يلا نخدم الراجل.']));
+        }
+        this.fx('queue', place.door.x - 26, place.door.y + 18, '🧍');
+        task.serverId = server.id;
+      }
     }
     if (task.kind === 'eat' && place) {
       this.addLog('food', `قعد ياكل ${place.meal ? place.meal.name : 'حاجة سريعة'} في ${place.name}.`, r);
@@ -673,6 +921,7 @@ export class Sim {
         break;
       }
       case 'sleep': {
+        r.carry = null;
         r.energy = clamp(r.energy + 14, 0, 100);
         r.mood = clamp(r.mood + 2, 0, 100);
         this.addLog('home', 'صحى من النوم، غسل وشه، وشرب شاي.', r);
@@ -696,6 +945,15 @@ export class Sim {
           r.stats.meals++;
           this.addLog('money', `دفع ${money(cost)} على ${meal.name}.`, r);
           this.think(r, pick(['شبعت… الحمد لله.', 'الأكل هنا طعمه زي البيت.', 'القرش بيطير بسرعة…']));
+          this.payCounter(r, task, place, cost, meal.name);
+          if (task.serverId) {
+            const cook = this.getResident(task.serverId);
+            if (cook && chance(0.5)) {
+              this.talkTo(r, cook,
+                pick(TALK.customer).replace('{p}', meal.name).replace('{n}', cook.name.split(' ')[0]),
+                pick(TALK.seller).replace('{n}', r.name.split(' ')[0]));
+            }
+          }
         }
         break;
       }
@@ -736,6 +994,42 @@ export class Sim {
         r.mood = clamp(r.mood - 2, 0, 100);
         this.addLog('money', `خلص يومية في ${place ? place.name : 'الشارع'} وقبض ${money(earn)}.`, r);
         this.think(r, pick(['كل قرش بشقاه… بس الحمد لله.', 'اليومية مشيت النهاردة.', 'لو الشغل ده ثابت، كنت ارتحت.']));
+        break;
+      }
+      case 'shop': {
+        const price = task.price || 0;
+        const product = task.product || { name: 'حاجة', icon: '🛍️' };
+        if (r.money < price) {
+          this.addLog('money', `دخل ${place ? place.name : 'المحل'} وشاف السعر… ورجع من غير ما يشتري.`, r);
+          this.think(r, pick(['السعر غالي عليّا…', 'هستنى لحد ما الفلوس تتحسن.']));
+          r.mood = clamp(r.mood - 3, 0, 100);
+          break;
+        }
+        r.money -= price;
+        r.stats.spent += price;
+        this.stats.spent += price;
+        this.stats.sales += price;
+        this.stats.salesCount++;
+        r.carry = product.icon;
+        r.mood = clamp(r.mood + 3, 0, 100);
+        const seller = task.serverId ? this.getResident(task.serverId) : null;
+        this.addLog('money', `اشترى ${product.name} من ${place ? place.name : 'المحل'} بـ${money(price)}.`, r);
+        if (seller) {
+          const comm = Math.max(2, Math.round(price * 0.35));
+          seller.money += comm;
+          seller.stats.earned += comm;
+          this.stats.earned += comm;
+          seller.mood = clamp(seller.mood + 2, 0, 100);
+          this.addLog('money', `باع ${product.name} لـ${r.name} بـ${money(price)} — حصته ${money(comm)}.`, seller);
+          this.fx('sale', (place ? place.door.x : r.x) + 6, (place ? place.door.y : r.y) + 15, `+${money(comm)}`);
+          this.bumpRel(r, seller, 4);
+          if (chance(0.5)) {
+            this.talkTo(r, seller,
+              pick(TALK.customer).replace('{p}', product.name).replace('{n}', seller.name.split(' ')[0]),
+              pick(TALK.seller).replace('{n}', r.name.split(' ')[0]));
+          }
+        }
+        this.think(r, pick(['جبت الحاجة… يلا البيت.', 'باقي حاجات تانية الأسبوع الجاي.', 'كل مرة أطلع من السوق أدفع أكتر.']));
         break;
       }
       case 'social': {
@@ -810,6 +1104,12 @@ export class Sim {
     /* 5 — money trouble */
     if (r.money < 55) return this.gig(r);
 
+    /* 5b — house errands */
+    if (this.minute > r.nextShop && t >= 9 * 60 && t <= 20 * 60 + 30 && r.money > 35) {
+      r.nextShop = this.minute + rnd(260, 520);
+      if (chance(0.8)) return this.shop(r);
+    }
+
     /* 6 — family time in the evening */
     if (t >= 18 * 60 && t <= 21 * 60 + 30 && chance(0.42)) return this.family(r);
 
@@ -874,8 +1174,21 @@ export class Sim {
   }
 
   social(r) {
-    const spots = this.places.filter(p => ['social', 'food'].includes(p.kind));
-    const place = pick(spots);
+    const spots = this.places.filter(p => ['social', 'food'].includes(p.kind) && p.id !== r.workplaceId);
+    let place = pick(spots);
+    if (chance(0.65)) {
+      const counts = new Map();
+      for (const o of this.residents) {
+        if (o === r || !o.task || !o.task.placeId) continue;
+        counts.set(o.task.placeId, (counts.get(o.task.placeId) || 0) + 1);
+      }
+      let bestId = null, bestN = 0;
+      for (const p of spots) {
+        const n = counts.get(p.id) || 0;
+        if (n > bestN) { bestN = n; bestId = p.id; }
+      }
+      if (bestId) place = this.getPlace(bestId);
+    }
     const isFood = place.meal && place.kind === 'food' && r.money > place.meal.cost;
     const cost = isFood ? Math.round(place.meal.cost * 0.6) : (place.kind === 'social' ? (chance(0.4) ? 8 : 0) : 0);
     if (place.kind === 'social' && chance(0.5)) {
@@ -895,6 +1208,23 @@ export class Sim {
     const home = this.getPlace(r.homeId);
     return this.goToPlace(r, home, 'family', {
       duration: rndInt(60, 120), thought: pick(T.family), silent: true,
+    });
+  }
+
+  shop(r) {
+    const shops = this.places.filter(p => p.products && p.products.length);
+    if (!shops.length) return this.wander(r);
+    const staffed = shops.filter(p => this.workerAt(p.id));
+    const place = pick(staffed.length && chance(0.75) ? staffed : shops);
+    const product = pick(place.products);
+    const price = Math.round(product.price * (this.mod.foodPrice || 1));
+    if (chance(0.45)) this.addLog('social', `نزل ${place.name} يجيب ${product.name}.`, r);
+    return this.goToPlace(r, place, 'shop', {
+      duration: rndInt(16, 30),
+      product,
+      price,
+      thought: pick(['ناقص حاجات في البيت…', 'هجيب حاجة سريعة وأرجع.', 'الأسعار كل يوم بتغلى.']),
+      silent: true,
     });
   }
 
@@ -972,6 +1302,13 @@ export class Sim {
         const job = jobPlace && r.jobIndex >= 0 ? jobPlace.jobs[r.jobIndex] : null;
         if (job && this.t > job.end + 30) { r.task = null; r.phase = 'idle'; }
       }
+    }
+
+    /* conversations with whoever is standing nearby */
+    r.chatTimer -= real;
+    if (r.chatTimer <= 0) {
+      r.chatTimer = rnd(4, 10);
+      if (r.task && r.task.kind !== 'sleep') this.maybeChat(r);
     }
 
     /* random musings */
